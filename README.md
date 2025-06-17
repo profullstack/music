@@ -6,66 +6,72 @@ A bash script for organizing and converting audio files with automatic numbering
 
 The `move.sh` script helps organize WAV audio files by:
 - Renaming files with sequential numbering (001, 002, etc.)
-- Moving files to organized directory structures
-- Converting WAV files to high-quality MP3 format using ffmpeg
+- Processing files in-place within their current directory
+- Converting WAV files to high-quality MP3 format using @profullstack/transcoder
 - Supporting multiple output formats (WAV, MP3, or both)
 
 ## Prerequisites
 
 - **Bash shell** (Linux/macOS/WSL)
-- **ffmpeg** (required for MP3 conversion)
+- **Node.js** (required for @profullstack/transcoder)
+- **npx** (comes with Node.js)
 
-### Installing ffmpeg
+### Installing Node.js
 
 ```bash
 # Ubuntu/Debian
-sudo apt install ffmpeg
+curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
+sudo apt-get install -y nodejs
 
 # macOS (with Homebrew)
-brew install ffmpeg
+brew install node
 
-# CentOS/RHEL/Fedora
-sudo dnf install ffmpeg
-# or
-sudo yum install ffmpeg
+# Or download from https://nodejs.org/
 ```
+
+Note: The @profullstack/transcoder package will be automatically downloaded via npx when needed.
 
 ## Usage
 
 ```bash
-./move.sh [--mp3|--wav|--both] <target_path>
+./move.sh [--mp3|--wav|--both] [directory_path]
 ```
 
 ### Command-line Options
 
 | Option | Description |
 |--------|-------------|
-| `--mp3` | Convert WAV files to MP3 and move to target path |
-| `--wav` | Move WAV files to target path (default behavior) |
-| `--both` | Move WAV files AND create MP3 copies in target path |
+| `--mp3` | Convert WAV files to MP3 in the same directory |
+| `--wav` | Rename WAV files with sequential numbering (default behavior) |
+| `--both` | Rename WAV files AND create MP3 copies in the same directory |
 | `--help`, `-h` | Display help information |
 
 ### Arguments
 
-- `target_path`: Directory path where files should be moved (e.g., `./artist/album`)
+- `directory_path`: Directory containing WAV files (default: current directory)
 
 ## Examples
 
-### Convert to MP3 only
+### Convert to MP3 only (in current directory)
 ```bash
-./move.sh --mp3 ./VelocityVibe/PulseRevolution
+./move.sh --mp3
 ```
 
-### Move WAV files (default)
+### Convert to MP3 in specific directory
 ```bash
-./move.sh --wav ./VelocityVibe/PulseRevolution
+./move.sh --mp3 "./Velocity Vibe/Pulse Revolution"
+```
+
+### Rename WAV files (default)
+```bash
+./move.sh "./Velocity Vibe/Pulse Revolution"
 # or simply
-./move.sh ./VelocityVibe/PulseRevolution
+./move.sh --wav "./Velocity Vibe/Pulse Revolution"
 ```
 
 ### Keep WAV and create MP3 copies
 ```bash
-./move.sh --both ./VelocityVibe/PulseRevolution
+./move.sh --both "./Velocity Vibe/Pulse Revolution"
 ```
 
 ### Display help
@@ -82,24 +88,23 @@ The script automatically renames files using this pattern:
 
 **Example:**
 - Original: `track1.wav`
-- Target path: `./VelocityVibe/PulseRevolution`
-- Result: `001-track1-PulseRevolution.wav`
+- Working directory: `./Velocity Vibe/Pulse Revolution`
+- Result: `001-track1-Pulse Revolution.wav`
 
 ## MP3 Conversion Settings
 
-When converting to MP3, the script uses high-quality settings:
+When converting to MP3, the script uses @profullstack/transcoder with high-quality settings:
 
-- **Codec**: libmp3lame
 - **Bitrate**: 320 kbps (highest quality)
 - **Sample Rate**: 44.1 kHz (CD quality)
-- **Channels**: Stereo (2 channels)
 - **Format**: MP3
+- **Tool**: @profullstack/transcoder (Node.js-based)
 
 ## Features
 
-### ✅ Automatic Directory Creation
-- Creates target directories if they don't exist
-- Supports nested directory structures
+### ✅ In-Place Processing
+- Works directly in the directory containing WAV files
+- No complex directory structures needed
 
 ### ✅ Sequential Numbering
 - Automatically numbers files with leading zeros (001, 002, 003...)
@@ -107,7 +112,7 @@ When converting to MP3, the script uses high-quality settings:
 
 ### ✅ Error Handling
 - Validates command-line arguments
-- Checks for ffmpeg availability
+- Checks for Node.js/npx availability
 - Provides clear error messages
 - Tracks processing statistics
 
@@ -121,30 +126,32 @@ When converting to MP3, the script uses high-quality settings:
 - MP3-only conversion
 - Dual format output (both WAV and MP3)
 
+### ✅ Node.js-Based Transcoding
+- Uses @profullstack/transcoder for reliable audio conversion
+- Automatically downloads transcoder via npx when needed
+
 ## Script Behavior
 
 ### WAV Mode (`--wav`)
-1. Renames WAV files with sequential numbering
-2. Moves files to target directory
-3. Original files are moved (not copied)
+1. Renames WAV files with sequential numbering in the same directory
+2. Files are renamed in-place
 
 ### MP3 Mode (`--mp3`)
-1. Converts WAV files to high-quality MP3
-2. Moves MP3 files to target directory
-3. Original WAV files are deleted after successful conversion
+1. Converts WAV files to high-quality MP3 in the same directory
+2. Original WAV files are deleted after successful conversion
 
 ### Both Mode (`--both`)
-1. Renames and moves WAV files to target directory
-2. Creates MP3 copies from the moved WAV files
-3. Both formats are preserved in the target directory
+1. Renames WAV files with sequential numbering
+2. Creates MP3 copies from the renamed WAV files
+3. Both formats are preserved in the same directory
 
 ## Error Handling
 
 The script handles various error conditions:
 
-- **Missing ffmpeg**: Provides installation instructions
+- **Missing Node.js/npx**: Provides installation instructions
 - **Invalid arguments**: Shows usage information
-- **Directory creation failures**: Reports specific errors
+- **Directory access failures**: Reports specific errors
 - **Conversion failures**: Tracks and reports failed conversions
 - **No WAV files found**: Warns if no input files are available
 
@@ -152,35 +159,36 @@ The script handles various error conditions:
 
 ```
 Processing WAV files with format: both
-Target directory: ./VelocityVibe/PulseRevolution
+Working directory: ./Velocity Vibe/Pulse Revolution
 
-✓ Moved WAV: 001-Deployed-PulseRevolution.wav
-Converting: 001-Deployed-PulseRevolution.wav -> 001-Deployed-PulseRevolution.mp3
-✓ Conversion successful: 001-Deployed-PulseRevolution.mp3
-✓ Moved WAV: 002-Integration-PulseRevolution.wav
-Converting: 002-Integration-PulseRevolution.wav -> 002-Integration-PulseRevolution.mp3
-✓ Conversion successful: 002-Integration-PulseRevolution.mp3
+✓ Renamed WAV: 001-Deployed-Pulse Revolution.wav
+Converting: 001-Deployed-Pulse Revolution.wav -> 001-Deployed-Pulse Revolution.mp3
+✓ Conversion successful: 001-Deployed-Pulse Revolution.mp3
+✓ Created MP3 copy: 001-Deployed-Pulse Revolution.mp3
+✓ Renamed WAV: 002-Integration-Pulse Revolution.wav
+Converting: 002-Integration-Pulse Revolution.wav -> 002-Integration-Pulse Revolution.mp3
+✓ Conversion successful: 002-Integration-Pulse Revolution.mp3
+✓ Created MP3 copy: 002-Integration-Pulse Revolution.mp3
 
 === Processing Complete ===
 Files processed: 2
 Conversion errors: 0
-Target directory: ./VelocityVibe/PulseRevolution
+Working directory: /home/user/music/Velocity Vibe/Pulse Revolution
 ```
 
 ## Troubleshooting
 
-### ffmpeg not found
+### Node.js/npx not found
 ```
-Error: ffmpeg is required for MP3 conversion but not found.
-Please install ffmpeg: sudo apt install ffmpeg (Ubuntu/Debian) or brew install ffmpeg (macOS)
+Error: npx is required but not found. Please install Node.js.
 ```
-**Solution**: Install ffmpeg using your system's package manager.
+**Solution**: Install Node.js from https://nodejs.org/ or using your system's package manager.
 
 ### No WAV files found
 ```
-Warning: No WAV files found in current directory
+Warning: No WAV files found in directory: ./some/path
 ```
-**Solution**: Ensure you're running the script from a directory containing `.wav` files.
+**Solution**: Ensure the specified directory contains `.wav` files.
 
 ### Permission denied
 ```
@@ -218,4 +226,4 @@ current_directory/
 
 ## License
 
-This script is provided as-is for personal and educational use.
+This script is provided as-is for any use. See LICENSE

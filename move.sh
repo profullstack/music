@@ -2,49 +2,52 @@
 
 # Function to display usage
 usage() {
-    echo "Usage: $0 [--mp3|--wav|--both] <target_path>"
+    echo "Usage: $0 [--mp3|--wav|--both] [directory_path]"
     echo ""
     echo "Options:"
-    echo "  --mp3     Convert WAV files to MP3 and move to target path"
-    echo "  --wav     Move WAV files to target path (default)"
-    echo "  --both    Move WAV files and create MP3 copies in target path"
+    echo "  --mp3     Convert WAV files to MP3 in the same directory"
+    echo "  --wav     Rename WAV files with sequential numbering (default)"
+    echo "  --both    Rename WAV files and create MP3 copies in the same directory"
     echo ""
     echo "Arguments:"
-    echo "  target_path   Directory path where files should be moved (e.g., ./artist/album)"
+    echo "  directory_path   Directory containing WAV files (default: current directory)"
     echo ""
     echo "Examples:"
-    echo "  $0 --mp3 ./VelocityVibe/PulseRevolution"
-    echo "  $0 --wav ./VelocityVibe/PulseRevolution"
-    echo "  $0 --both ./VelocityVibe/PulseRevolution"
-    echo "  $0 ./VelocityVibe/PulseRevolution  # defaults to --wav"
+    echo "  $0 --mp3                                    # Convert WAV to MP3 in current directory"
+    echo "  $0 --mp3 \"./Velocity Vibe/Pulse Revolution\"  # Convert in specific directory"
+    echo "  $0 --both \"./Velocity Vibe/Pulse Revolution\" # Rename WAV and create MP3 copies"
+    echo "  $0 \"./Velocity Vibe/Pulse Revolution\"        # Just rename WAV files (default)"
     exit 1
 }
 
-# Function to check if ffmpeg is available
-check_ffmpeg() {
-    if ! command -v ffmpeg &> /dev/null; then
-        echo "Error: ffmpeg is required for MP3 conversion but not found."
-        echo "Please install ffmpeg: sudo apt install ffmpeg (Ubuntu/Debian) or brew install ffmpeg (macOS)"
+# Function to check if @profullstack/transcoder is available
+check_transcoder() {
+    if ! command -v npx &> /dev/null; then
+        echo "Error: npx is required but not found. Please install Node.js."
         exit 1
+    fi
+    
+    echo "Checking @profullstack/transcoder availability..."
+    # Test if the package can be accessed via npx
+    if ! npx --yes @profullstack/transcoder --help &> /dev/null; then
+        echo "Note: @profullstack/transcoder will be downloaded on first use via npx"
     fi
 }
 
-# Function to convert WAV to MP3 using ffmpeg
+# Function to convert WAV to MP3 using @profullstack/transcoder
 convert_to_mp3() {
     local input_file="$1"
     local output_file="$2"
     
     echo "Converting: $(basename "$input_file") -> $(basename "$output_file")"
     
-    # Use ffmpeg with standard music settings
-    if ffmpeg -i "$input_file" \
-        -codec:a libmp3lame \
-        -b:a 320k \
-        -ar 44100 \
-        -ac 2 \
-        -f mp3 \
-        "$output_file" \
-        -y -loglevel error; then
+    # Use @profullstack/transcoder via npx
+    if npx --yes @profullstack/transcoder \
+        --input "$input_file" \
+        --output "$output_file" \
+        --format mp3 \
+        --bitrate 320k \
+        --sample-rate 44100; then
         echo "✓ Conversion successful: $(basename "$output_file")"
         return 0
     else
@@ -55,7 +58,7 @@ convert_to_mp3() {
 
 # Parse command line arguments
 FORMAT="wav"  # default
-TARGET_DIR=""
+WORK_DIR="."  # default to current directory
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -79,10 +82,10 @@ while [[ $# -gt 0 ]]; do
             usage
             ;;
         *)
-            if [[ -z "$TARGET_DIR" ]]; then
-                TARGET_DIR="$1"
+            if [[ -z "$WORK_DIR" || "$WORK_DIR" == "." ]]; then
+                WORK_DIR="$1"
             else
-                echo "Error: Multiple target directories specified"
+                echo "Error: Multiple directories specified"
                 usage
             fi
             shift
@@ -90,22 +93,15 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Validate arguments
-if [[ -z "$TARGET_DIR" ]]; then
-    echo "Error: Target directory is required"
-    usage
-fi
-
-# Check if ffmpeg is available when needed
-if [[ "$FORMAT" == "mp3" || "$FORMAT" == "both" ]]; then
-    check_ffmpeg
-fi
-
-# Create target directory
-mkdir -p "$TARGET_DIR"
-if [[ $? -ne 0 ]]; then
-    echo "Error: Failed to create target directory: $TARGET_DIR"
+# Validate working directory
+if [[ ! -d "$WORK_DIR" ]]; then
+    echo "Error: Directory does not exist: $WORK_DIR"
     exit 1
+fi
+
+# Check if transcoder is available when needed
+if [[ "$FORMAT" == "mp3" || "$FORMAT" == "both" ]]; then
+    check_transcoder
 fi
 
 # Initialize counter
@@ -114,10 +110,19 @@ processed_files=0
 conversion_errors=0
 
 echo "Processing WAV files with format: $FORMAT"
-echo "Target directory: $TARGET_DIR"
+echo "Working directory: $WORK_DIR"
 echo ""
 
-# Loop through all wav files in current directory
+# Change to working directory
+cd "$WORK_DIR" || {
+    echo "Error: Cannot access directory: $WORK_DIR"
+    exit 1
+}
+
+# Extract album name from directory (last component)
+album=$(basename "$(pwd)")
+
+# Loop through all wav files in the directory
 for file in *.wav; do
     if [[ -f "$file" ]]; then
         # Format counter with leading zeros (001)
@@ -125,9 +130,6 @@ for file in *.wav; do
 
         # Clean up original filename (remove extension)
         base=$(basename "$file" .wav)
-        
-        # Extract album name from target directory (last component)
-        album=$(basename "$TARGET_DIR")
 
         # Create new filenames
         wav_name="${num}-${base}-${album}.wav"
@@ -135,17 +137,17 @@ for file in *.wav; do
 
         case $FORMAT in
             "wav")
-                # Move WAV file only
-                if mv "$file" "$TARGET_DIR/$wav_name"; then
-                    echo "✓ Moved: $wav_name"
+                # Rename WAV file only
+                if mv "$file" "$wav_name"; then
+                    echo "✓ Renamed: $wav_name"
                     ((processed_files++))
                 else
-                    echo "✗ Failed to move: $file"
+                    echo "✗ Failed to rename: $file"
                 fi
                 ;;
             "mp3")
-                # Convert to MP3 and move
-                if convert_to_mp3 "$file" "$TARGET_DIR/$mp3_name"; then
+                # Convert to MP3 and remove original WAV
+                if convert_to_mp3 "$file" "$mp3_name"; then
                     # Remove original WAV file after successful conversion
                     rm "$file"
                     ((processed_files++))
@@ -154,23 +156,22 @@ for file in *.wav; do
                 fi
                 ;;
             "both")
-                # Move WAV and create MP3 copy
+                # Rename WAV and create MP3 copy
                 wav_success=false
-                mp3_success=false
                 
-                # Move WAV file
-                if mv "$file" "$TARGET_DIR/$wav_name"; then
-                    echo "✓ Moved WAV: $wav_name"
+                # Rename WAV file
+                if mv "$file" "$wav_name"; then
+                    echo "✓ Renamed WAV: $wav_name"
                     wav_success=true
                     ((processed_files++))
                 else
-                    echo "✗ Failed to move WAV: $file"
+                    echo "✗ Failed to rename WAV: $file"
                 fi
                 
-                # Convert to MP3 from the moved WAV file
+                # Convert to MP3 from the renamed WAV file
                 if [[ "$wav_success" == true ]]; then
-                    if convert_to_mp3 "$TARGET_DIR/$wav_name" "$TARGET_DIR/$mp3_name"; then
-                        mp3_success=true
+                    if convert_to_mp3 "$wav_name" "$mp3_name"; then
+                        echo "✓ Created MP3 copy: $mp3_name"
                     else
                         ((conversion_errors++))
                     fi
@@ -190,11 +191,11 @@ echo "Files processed: $processed_files"
 if [[ $conversion_errors -gt 0 ]]; then
     echo "Conversion errors: $conversion_errors"
 fi
-echo "Target directory: $TARGET_DIR"
+echo "Working directory: $(pwd)"
 
 # Check if no files were found
 if [[ $counter -eq 1 ]]; then
     echo ""
-    echo "Warning: No WAV files found in current directory"
+    echo "Warning: No WAV files found in directory: $WORK_DIR"
     exit 1
 fi
