@@ -2,20 +2,22 @@
 
 # Function to display usage
 usage() {
-    echo "Usage: $0 [--mp3|--wav|--flac|--all] [directory_path]"
+    echo "Usage: $0 [--mp3|--wav|--flac|--all] [--delete-everything] [directory_path]"
     echo ""
     echo "Options:"
-    echo "  --mp3     Convert WAV files to MP3 in the same directory"
-    echo "  --wav     Rename WAV files with sequential numbering (default)"
-    echo "  --flac    Convert WAV files to FLAC in the same directory"
-    echo "  --all     Rename WAV files and create MP3 and FLAC copies in the same directory"
+    echo "  --mp3               Convert WAV files to MP3 in the same directory (keeps WAV files)"
+    echo "  --wav               Rename WAV files with sequential numbering (default)"
+    echo "  --flac              Convert WAV files to FLAC in the same directory (keeps WAV files)"
+    echo "  --all               Rename WAV files and create MP3 and FLAC copies in the same directory"
+    echo "  --delete-everything Delete original WAV files after conversion (requires confirmation)"
     echo ""
     echo "Arguments:"
-    echo "  directory_path   Directory containing WAV files (default: current directory)"
+    echo "  directory_path      Directory containing WAV files (default: current directory)"
     echo ""
     echo "Examples:"
-    echo "  $0 --mp3                                    # Convert WAV to MP3 in current directory"
-    echo "  $0 --flac \"./Velocity Vibe/Pulse Revolution\" # Convert WAV to FLAC in specific directory"
+    echo "  $0 --mp3                                    # Convert WAV to MP3, keep WAV files"
+    echo "  $0 --flac \"./Velocity Vibe/Pulse Revolution\" # Convert WAV to FLAC, keep WAV files"
+    echo "  $0 --mp3 --delete-everything                # Convert to MP3 and delete WAV files (with confirmation)"
     echo "  $0 --all \"./Velocity Vibe/Pulse Revolution\"  # Rename WAV and create MP3 and FLAC copies"
     echo "  $0 \"./Velocity Vibe/Pulse Revolution\"        # Just rename WAV files (default)"
     exit 1
@@ -69,9 +71,28 @@ convert_to_flac() {
     fi
 }
 
+# Function to confirm deletion of WAV files
+confirm_deletion() {
+    echo ""
+    echo "⚠️  WARNING: You are about to delete original WAV files after conversion!"
+    echo "This action cannot be undone. The original high-quality WAV files will be permanently removed."
+    echo ""
+    read -p "Are you sure you want to delete the original WAV files? [N/y]: " -n 1 -r
+    echo ""
+    
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        echo "Operation cancelled. WAV files will be preserved."
+        return 1
+    fi
+    
+    echo "Proceeding with WAV file deletion after conversion..."
+    return 0
+}
+
 # Parse command line arguments
 FORMAT="wav"  # default
 WORK_DIR="."  # default to current directory
+DELETE_WAVS=false  # default to preserve WAV files
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -89,6 +110,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --all)
             FORMAT="all"
+            shift
+            ;;
+        --delete-everything)
+            DELETE_WAVS=true
             shift
             ;;
         --help|-h)
@@ -119,6 +144,13 @@ fi
 # Check if transcoder is available when needed
 if [[ "$FORMAT" == "mp3" || "$FORMAT" == "flac" || "$FORMAT" == "all" ]]; then
     check_transcoder
+fi
+
+# Confirm deletion if --delete-everything flag is used
+if [[ "$DELETE_WAVS" == true ]]; then
+    if ! confirm_deletion; then
+        DELETE_WAVS=false
+    fi
 fi
 
 # Initialize counter
@@ -170,20 +202,36 @@ for file in *.wav; do
                 fi
                 ;;
             "mp3")
-                # Convert to MP3 and remove original WAV
+                # Convert to MP3 (optionally remove original WAV)
                 if convert_to_mp3 "$file" "$mp3_name"; then
-                    # Remove original WAV file after successful conversion
-                    rm "$file"
+                    if [[ "$DELETE_WAVS" == true ]]; then
+                        # Remove original WAV file after successful conversion
+                        rm "$file"
+                        echo "🗑️  Deleted original WAV: $file"
+                    else
+                        # Rename original WAV file to match numbering scheme
+                        if mv "$file" "$wav_name"; then
+                            echo "✓ Renamed original WAV: $wav_name"
+                        fi
+                    fi
                     ((processed_files++))
                 else
                     ((conversion_errors++))
                 fi
                 ;;
             "flac")
-                # Convert to FLAC and remove original WAV
+                # Convert to FLAC (optionally remove original WAV)
                 if convert_to_flac "$file" "$flac_name"; then
-                    # Remove original WAV file after successful conversion
-                    rm "$file"
+                    if [[ "$DELETE_WAVS" == true ]]; then
+                        # Remove original WAV file after successful conversion
+                        rm "$file"
+                        echo "🗑️  Deleted original WAV: $file"
+                    else
+                        # Rename original WAV file to match numbering scheme
+                        if mv "$file" "$wav_name"; then
+                            echo "✓ Renamed original WAV: $wav_name"
+                        fi
+                    fi
                     ((processed_files++))
                 else
                     ((conversion_errors++))
