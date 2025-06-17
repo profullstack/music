@@ -89,6 +89,25 @@ confirm_deletion() {
     return 0
 }
 
+# Function to confirm overwrite of existing files
+confirm_overwrite() {
+    local file_type="$1"
+    local filename="$2"
+    
+    echo ""
+    echo "⚠️  File already exists: $filename"
+    read -p "Do you want to overwrite this $file_type file? [y/N]: " -n 1 -r
+    echo ""
+    
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        echo "Proceeding with overwrite..."
+        return 0
+    else
+        echo "Skipping file to preserve existing version."
+        return 1
+    fi
+}
+
 # Parse command line arguments
 FORMAT="wav"  # default
 WORK_DIR="."  # default to current directory
@@ -193,11 +212,12 @@ for file in *.wav; do
 
         case $FORMAT in
             "wav")
-                # Skip if already renamed (check if target WAV file exists)
+                # Check if target WAV file already exists
                 if [[ -f "$wav_name" ]]; then
-                    echo "Skipping already processed file: $wav_name already exists"
-                    ((counter++))
-                    continue
+                    if ! confirm_overwrite "WAV" "$wav_name"; then
+                        ((counter++))
+                        continue
+                    fi
                 fi
                 
                 # Rename WAV file only
@@ -209,11 +229,12 @@ for file in *.wav; do
                 fi
                 ;;
             "mp3")
-                # Skip if MP3 already exists
+                # Check if MP3 already exists
                 if [[ -f "$mp3_name" ]]; then
-                    echo "Skipping conversion: $mp3_name already exists"
-                    ((counter++))
-                    continue
+                    if ! confirm_overwrite "MP3" "$mp3_name"; then
+                        ((counter++))
+                        continue
+                    fi
                 fi
                 
                 # Convert to MP3 (optionally remove original WAV)
@@ -228,6 +249,16 @@ for file in *.wav; do
                             if mv "$file" "$wav_name"; then
                                 echo "✓ Renamed original WAV: $wav_name"
                             fi
+                        elif [[ "$file" != "$wav_name" ]]; then
+                            # If WAV target exists but source is different, ask to overwrite
+                            if confirm_overwrite "WAV" "$wav_name"; then
+                                if mv "$file" "$wav_name"; then
+                                    echo "✓ Renamed original WAV: $wav_name"
+                                fi
+                            else
+                                # Keep original file if user doesn't want to overwrite
+                                echo "ℹ️  Keeping original file: $file"
+                            fi
                         fi
                     fi
                     ((processed_files++))
@@ -236,11 +267,12 @@ for file in *.wav; do
                 fi
                 ;;
             "flac")
-                # Skip if FLAC already exists
+                # Check if FLAC already exists
                 if [[ -f "$flac_name" ]]; then
-                    echo "Skipping conversion: $flac_name already exists"
-                    ((counter++))
-                    continue
+                    if ! confirm_overwrite "FLAC" "$flac_name"; then
+                        ((counter++))
+                        continue
+                    fi
                 fi
                 
                 # Convert to FLAC (optionally remove original WAV)
@@ -254,6 +286,16 @@ for file in *.wav; do
                         if [[ ! -f "$wav_name" ]]; then
                             if mv "$file" "$wav_name"; then
                                 echo "✓ Renamed original WAV: $wav_name"
+                            fi
+                        elif [[ "$file" != "$wav_name" ]]; then
+                            # If WAV target exists but source is different, ask to overwrite
+                            if confirm_overwrite "WAV" "$wav_name"; then
+                                if mv "$file" "$wav_name"; then
+                                    echo "✓ Renamed original WAV: $wav_name"
+                                fi
+                            else
+                                # Keep original file if user doesn't want to overwrite
+                                echo "ℹ️  Keeping original file: $file"
                             fi
                         fi
                     fi
