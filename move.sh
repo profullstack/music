@@ -193,6 +193,13 @@ for file in *.wav; do
 
         case $FORMAT in
             "wav")
+                # Skip if already renamed (check if target WAV file exists)
+                if [[ -f "$wav_name" ]]; then
+                    echo "Skipping already processed file: $wav_name already exists"
+                    ((counter++))
+                    continue
+                fi
+                
                 # Rename WAV file only
                 if mv "$file" "$wav_name"; then
                     echo "✓ Renamed: $wav_name"
@@ -202,6 +209,13 @@ for file in *.wav; do
                 fi
                 ;;
             "mp3")
+                # Skip if MP3 already exists
+                if [[ -f "$mp3_name" ]]; then
+                    echo "Skipping conversion: $mp3_name already exists"
+                    ((counter++))
+                    continue
+                fi
+                
                 # Convert to MP3 (optionally remove original WAV)
                 if convert_to_mp3 "$file" "$mp3_name"; then
                     if [[ "$DELETE_WAVS" == true ]]; then
@@ -209,9 +223,11 @@ for file in *.wav; do
                         rm "$file"
                         echo "🗑️  Deleted original WAV: $file"
                     else
-                        # Rename original WAV file to match numbering scheme
-                        if mv "$file" "$wav_name"; then
-                            echo "✓ Renamed original WAV: $wav_name"
+                        # Rename original WAV file to match numbering scheme if it doesn't already exist
+                        if [[ ! -f "$wav_name" ]]; then
+                            if mv "$file" "$wav_name"; then
+                                echo "✓ Renamed original WAV: $wav_name"
+                            fi
                         fi
                     fi
                     ((processed_files++))
@@ -220,6 +236,13 @@ for file in *.wav; do
                 fi
                 ;;
             "flac")
+                # Skip if FLAC already exists
+                if [[ -f "$flac_name" ]]; then
+                    echo "Skipping conversion: $flac_name already exists"
+                    ((counter++))
+                    continue
+                fi
+                
                 # Convert to FLAC (optionally remove original WAV)
                 if convert_to_flac "$file" "$flac_name"; then
                     if [[ "$DELETE_WAVS" == true ]]; then
@@ -227,9 +250,11 @@ for file in *.wav; do
                         rm "$file"
                         echo "🗑️  Deleted original WAV: $file"
                     else
-                        # Rename original WAV file to match numbering scheme
-                        if mv "$file" "$wav_name"; then
-                            echo "✓ Renamed original WAV: $wav_name"
+                        # Rename original WAV file to match numbering scheme if it doesn't already exist
+                        if [[ ! -f "$wav_name" ]]; then
+                            if mv "$file" "$wav_name"; then
+                                echo "✓ Renamed original WAV: $wav_name"
+                            fi
                         fi
                     fi
                     ((processed_files++))
