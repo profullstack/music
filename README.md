@@ -7,8 +7,18 @@ A bash script for organizing and converting audio files with automatic numbering
 The `move.sh` script helps organize WAV audio files by:
 - Renaming files with sequential numbering (001, 002, etc.)
 - Processing files in-place within their current directory
-- Converting WAV files to high-quality MP3 format using @profullstack/transcoder
-- Supporting multiple output formats (WAV, MP3, or both)
+- Converting WAV files to high-quality MP3 and FLAC formats using @profullstack/transcoder
+- Supporting multiple output formats (WAV, MP3, FLAC, or all)
+
+## About ProFullStack Music
+
+This tool is part of the [ProFullStack Music](https://music.profullstack.com) ecosystem - a music distribution and band promotion platform. We specialize in:
+
+- **Music Distribution**: Getting your music on all major streaming platforms
+- **Band Promotion**: Marketing and promotional services for independent artists
+- **Audio Production Tools**: Professional-grade tools for music production and organization
+
+Visit [music.profullstack.com](https://music.profullstack.com) to learn more about our music services and how we can help promote your band or distribute your music worldwide.
 
 ## Prerequisites
 
@@ -245,6 +255,14 @@ current_directory/
         ├── 003-track3-Album.wav
         └── 003-track3-Album.mp3
 ```
+
+## Support This Project
+
+If you find this music file organizer helpful for your audio production workflow, consider supporting continued development:
+
+[![Crypto Payment](https://paybadge.profullstack.com/badge.svg)](https://paybadge.profullstack.com/?tickers=btc%2Ceth%2Csol%2Cusdc)
+
+Your support helps us maintain and improve this tool, as well as develop new features for the music production community.
 
 ## License
 
