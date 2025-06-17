@@ -14,11 +14,12 @@ The `move.sh` script helps organize WAV audio files by:
 
 - **Bash shell** (Linux/macOS/WSL)
 - **Node.js** (required for @profullstack/transcoder)
-- **npx** (comes with Node.js)
+- **@profullstack/transcoder CLI** (globally installed)
 
-### Installing Node.js
+### Installing Dependencies
 
 ```bash
+# Install Node.js first
 # Ubuntu/Debian
 curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
 sudo apt-get install -y nodejs
@@ -26,15 +27,17 @@ sudo apt-get install -y nodejs
 # macOS (with Homebrew)
 brew install node
 
-# Or download from https://nodejs.org/
-```
+# Install @profullstack/transcoder globally
+pnpm add -g @profullstack/transcoder
 
-Note: The @profullstack/transcoder package will be automatically downloaded via npx when needed.
+# Or with npm
+npm install -g @profullstack/transcoder
+```
 
 ## Usage
 
 ```bash
-./move.sh [--mp3|--wav|--both] [directory_path]
+./move.sh [--mp3|--wav|--flac|--all] [directory_path]
 ```
 
 ### Command-line Options
@@ -43,7 +46,8 @@ Note: The @profullstack/transcoder package will be automatically downloaded via 
 |--------|-------------|
 | `--mp3` | Convert WAV files to MP3 in the same directory |
 | `--wav` | Rename WAV files with sequential numbering (default behavior) |
-| `--both` | Rename WAV files AND create MP3 copies in the same directory |
+| `--flac` | Convert WAV files to FLAC in the same directory |
+| `--all` | Rename WAV files AND create MP3 and FLAC copies in the same directory |
 | `--help`, `-h` | Display help information |
 
 ### Arguments
@@ -62,6 +66,11 @@ Note: The @profullstack/transcoder package will be automatically downloaded via 
 ./move.sh --mp3 "./Velocity Vibe/Pulse Revolution"
 ```
 
+### Convert to FLAC in specific directory
+```bash
+./move.sh --flac "./Velocity Vibe/Pulse Revolution"
+```
+
 ### Rename WAV files (default)
 ```bash
 ./move.sh "./Velocity Vibe/Pulse Revolution"
@@ -69,9 +78,9 @@ Note: The @profullstack/transcoder package will be automatically downloaded via 
 ./move.sh --wav "./Velocity Vibe/Pulse Revolution"
 ```
 
-### Keep WAV and create MP3 copies
+### Keep WAV and create MP3 and FLAC copies
 ```bash
-./move.sh --both "./Velocity Vibe/Pulse Revolution"
+./move.sh --all "./Velocity Vibe/Pulse Revolution"
 ```
 
 ### Display help
@@ -91,14 +100,20 @@ The script automatically renames files using this pattern:
 - Working directory: `./Velocity Vibe/Pulse Revolution`
 - Result: `001-track1-Pulse Revolution.wav`
 
-## MP3 Conversion Settings
+## Audio Conversion Settings
 
-When converting to MP3, the script uses @profullstack/transcoder with high-quality settings:
+When converting audio files, the script uses @profullstack/transcoder CLI with high-quality settings:
 
+**MP3 Conversion:**
+- **Audio Codec**: libmp3lame
 - **Bitrate**: 320 kbps (highest quality)
-- **Sample Rate**: 44.1 kHz (CD quality)
 - **Format**: MP3
-- **Tool**: @profullstack/transcoder (Node.js-based)
+
+**FLAC Conversion:**
+- **Audio Codec**: flac
+- **Format**: FLAC (lossless compression)
+
+**Tool**: @profullstack/transcoder CLI
 
 ## Features
 
@@ -149,7 +164,7 @@ When converting to MP3, the script uses @profullstack/transcoder with high-quali
 
 The script handles various error conditions:
 
-- **Missing Node.js/npx**: Provides installation instructions
+- **Missing transcoder CLI**: Provides installation instructions
 - **Invalid arguments**: Shows usage information
 - **Directory access failures**: Reports specific errors
 - **Conversion failures**: Tracks and reports failed conversions
@@ -158,17 +173,23 @@ The script handles various error conditions:
 ## Output Example
 
 ```
-Processing WAV files with format: both
+Processing WAV files with format: all
 Working directory: ./Velocity Vibe/Pulse Revolution
 
 ✓ Renamed WAV: 001-Deployed-Pulse Revolution.wav
 Converting: 001-Deployed-Pulse Revolution.wav -> 001-Deployed-Pulse Revolution.mp3
 ✓ Conversion successful: 001-Deployed-Pulse Revolution.mp3
 ✓ Created MP3 copy: 001-Deployed-Pulse Revolution.mp3
+Converting: 001-Deployed-Pulse Revolution.wav -> 001-Deployed-Pulse Revolution.flac
+✓ Conversion successful: 001-Deployed-Pulse Revolution.flac
+✓ Created FLAC copy: 001-Deployed-Pulse Revolution.flac
 ✓ Renamed WAV: 002-Integration-Pulse Revolution.wav
 Converting: 002-Integration-Pulse Revolution.wav -> 002-Integration-Pulse Revolution.mp3
 ✓ Conversion successful: 002-Integration-Pulse Revolution.mp3
 ✓ Created MP3 copy: 002-Integration-Pulse Revolution.mp3
+Converting: 002-Integration-Pulse Revolution.wav -> 002-Integration-Pulse Revolution.flac
+✓ Conversion successful: 002-Integration-Pulse Revolution.flac
+✓ Created FLAC copy: 002-Integration-Pulse Revolution.flac
 
 === Processing Complete ===
 Files processed: 2
@@ -178,11 +199,12 @@ Working directory: /home/user/music/Velocity Vibe/Pulse Revolution
 
 ## Troubleshooting
 
-### Node.js/npx not found
+### Transcoder CLI not found
 ```
-Error: npx is required but not found. Please install Node.js.
+Error: transcoder CLI is required but not found.
+Please install it with: pnpm add -g @profullstack/transcoder
 ```
-**Solution**: Install Node.js from https://nodejs.org/ or using your system's package manager.
+**Solution**: Install @profullstack/transcoder globally using pnpm or npm.
 
 ### No WAV files found
 ```

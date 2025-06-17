@@ -2,52 +2,65 @@
 
 # Function to display usage
 usage() {
-    echo "Usage: $0 [--mp3|--wav|--both] [directory_path]"
+    echo "Usage: $0 [--mp3|--wav|--flac|--all] [directory_path]"
     echo ""
     echo "Options:"
     echo "  --mp3     Convert WAV files to MP3 in the same directory"
     echo "  --wav     Rename WAV files with sequential numbering (default)"
-    echo "  --both    Rename WAV files and create MP3 copies in the same directory"
+    echo "  --flac    Convert WAV files to FLAC in the same directory"
+    echo "  --all     Rename WAV files and create MP3 and FLAC copies in the same directory"
     echo ""
     echo "Arguments:"
     echo "  directory_path   Directory containing WAV files (default: current directory)"
     echo ""
     echo "Examples:"
     echo "  $0 --mp3                                    # Convert WAV to MP3 in current directory"
-    echo "  $0 --mp3 \"./Velocity Vibe/Pulse Revolution\"  # Convert in specific directory"
-    echo "  $0 --both \"./Velocity Vibe/Pulse Revolution\" # Rename WAV and create MP3 copies"
+    echo "  $0 --flac \"./Velocity Vibe/Pulse Revolution\" # Convert WAV to FLAC in specific directory"
+    echo "  $0 --all \"./Velocity Vibe/Pulse Revolution\"  # Rename WAV and create MP3 and FLAC copies"
     echo "  $0 \"./Velocity Vibe/Pulse Revolution\"        # Just rename WAV files (default)"
     exit 1
 }
 
-# Function to check if @profullstack/transcoder is available
+# Function to check if transcoder is available
 check_transcoder() {
-    if ! command -v npx &> /dev/null; then
-        echo "Error: npx is required but not found. Please install Node.js."
+    if ! command -v transcoder &> /dev/null; then
+        echo "Error: transcoder CLI is required but not found."
+        echo "Please install it with: pnpm add -g @profullstack/transcoder"
         exit 1
     fi
     
-    echo "Checking @profullstack/transcoder availability..."
-    # Test if the package can be accessed via npx
-    if ! npx --yes @profullstack/transcoder --help &> /dev/null; then
-        echo "Note: @profullstack/transcoder will be downloaded on first use via npx"
-    fi
+    echo "Transcoder CLI found and ready to use."
 }
 
-# Function to convert WAV to MP3 using @profullstack/transcoder
+# Function to convert WAV to MP3 using @profullstack/transcoder CLI
 convert_to_mp3() {
     local input_file="$1"
     local output_file="$2"
     
     echo "Converting: $(basename "$input_file") -> $(basename "$output_file")"
     
-    # Use @profullstack/transcoder via npx
-    if npx --yes @profullstack/transcoder \
-        --input "$input_file" \
-        --output "$output_file" \
-        --format mp3 \
-        --bitrate 320k \
-        --sample-rate 44100; then
+    # Use transcoder CLI with proper syntax
+    if transcoder "$input_file" "$output_file" \
+        --audio-codec libmp3lame \
+        --audio-bitrate 320k; then
+        echo "✓ Conversion successful: $(basename "$output_file")"
+        return 0
+    else
+        echo "✗ Conversion failed: $(basename "$input_file")"
+        return 1
+    fi
+}
+
+# Function to convert WAV to FLAC using @profullstack/transcoder CLI
+convert_to_flac() {
+    local input_file="$1"
+    local output_file="$2"
+    
+    echo "Converting: $(basename "$input_file") -> $(basename "$output_file")"
+    
+    # Use transcoder CLI with FLAC codec
+    if transcoder "$input_file" "$output_file" \
+        --audio-codec flac; then
         echo "✓ Conversion successful: $(basename "$output_file")"
         return 0
     else
@@ -70,8 +83,12 @@ while [[ $# -gt 0 ]]; do
             FORMAT="wav"
             shift
             ;;
-        --both)
-            FORMAT="both"
+        --flac)
+            FORMAT="flac"
+            shift
+            ;;
+        --all)
+            FORMAT="all"
             shift
             ;;
         --help|-h)
@@ -100,7 +117,7 @@ if [[ ! -d "$WORK_DIR" ]]; then
 fi
 
 # Check if transcoder is available when needed
-if [[ "$FORMAT" == "mp3" || "$FORMAT" == "both" ]]; then
+if [[ "$FORMAT" == "mp3" || "$FORMAT" == "flac" || "$FORMAT" == "all" ]]; then
     check_transcoder
 fi
 
@@ -134,6 +151,7 @@ for file in *.wav; do
         # Create new filenames
         wav_name="${num}-${base}-${album}.wav"
         mp3_name="${num}-${base}-${album}.mp3"
+        flac_name="${num}-${base}-${album}.flac"
 
         case $FORMAT in
             "wav")
@@ -155,8 +173,18 @@ for file in *.wav; do
                     ((conversion_errors++))
                 fi
                 ;;
-            "both")
-                # Rename WAV and create MP3 copy
+            "flac")
+                # Convert to FLAC and remove original WAV
+                if convert_to_flac "$file" "$flac_name"; then
+                    # Remove original WAV file after successful conversion
+                    rm "$file"
+                    ((processed_files++))
+                else
+                    ((conversion_errors++))
+                fi
+                ;;
+            "all")
+                # Rename WAV and create MP3 and FLAC copies
                 wav_success=false
                 
                 # Rename WAV file
@@ -172,6 +200,15 @@ for file in *.wav; do
                 if [[ "$wav_success" == true ]]; then
                     if convert_to_mp3 "$wav_name" "$mp3_name"; then
                         echo "✓ Created MP3 copy: $mp3_name"
+                    else
+                        ((conversion_errors++))
+                    fi
+                fi
+                
+                # Convert to FLAC from the renamed WAV file
+                if [[ "$wav_success" == true ]]; then
+                    if convert_to_flac "$wav_name" "$flac_name"; then
+                        echo "✓ Created FLAC copy: $flac_name"
                     else
                         ((conversion_errors++))
                     fi
