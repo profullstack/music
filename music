@@ -209,11 +209,19 @@ for file in *.wav; do
 
         # Clean up original filename (remove extension)
         base=$(basename "$file" .wav)
-
-        # Create new filenames
-        wav_name="${num}-${base}-${album}.wav"
-        mp3_name="${num}-${base}-${album}.mp3"
-        flac_name="${num}-${base}-${album}.flac"
+        
+        # Check if the base already contains the album name to avoid duplication
+        if [[ "$base" == *"-${album}" ]]; then
+            # File already has album name, don't add it again
+            wav_name="${num}-${base}.wav"
+            mp3_name="${num}-${base}.mp3"
+            flac_name="${num}-${base}.flac"
+        else
+            # File doesn't have album name, add it
+            wav_name="${num}-${base}-${album}.wav"
+            mp3_name="${num}-${base}-${album}.mp3"
+            flac_name="${num}-${base}-${album}.flac"
+        fi
 
         case $FORMAT in
             "wav")
