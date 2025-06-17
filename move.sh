@@ -142,6 +142,12 @@ album=$(basename "$(pwd)")
 # Loop through all wav files in the directory
 for file in *.wav; do
     if [[ -f "$file" ]]; then
+        # Skip files that have already been processed (contain numbered format)
+        if [[ "$file" =~ ^[0-9]{3}- ]]; then
+            echo "Skipping already processed file: $file"
+            continue
+        fi
+        
         # Format counter with leading zeros (001)
         printf -v num "%03d" "$counter"
 

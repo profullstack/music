@@ -12,7 +12,7 @@ The `move.sh` script helps organize WAV audio files by:
 
 ## About ProFullStack Music
 
-This tool is part of the [ProFullStack Music](https://music.profullstack.com) ecosystem - a music distribution and band promotion platform. We specialize in:
+This tool is part of the [Profullstack Music](https://music.profullstack.com) ecosystem - a music distribution and band promotion platform. We specialize in:
 
 - **Music Distribution**: Getting your music on all major streaming platforms
 - **Band Promotion**: Marketing and promotional services for independent artists
