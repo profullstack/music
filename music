@@ -199,7 +199,8 @@ album=$(basename "$(pwd)")
 for file in *.wav; do
     if [[ -f "$file" ]]; then
         # Skip files that have already been processed (contain numbered format)
-        if [[ "$file" =~ ^[0-9]{3}- ]]; then
+        # Exception: --all mode can process already-numbered files to create missing formats
+        if [[ "$file" =~ ^[0-9]{3}- ]] && [[ "$FORMAT" != "all" ]]; then
             echo "Skipping already processed file: $file"
             continue
         fi
@@ -210,17 +211,27 @@ for file in *.wav; do
         # Clean up original filename (remove extension)
         base=$(basename "$file" .wav)
         
-        # Check if the base already contains the album name to avoid duplication
-        if [[ "$base" == *"-${album}" ]]; then
-            # File already has album name, don't add it again
-            wav_name="${num}-${base}.wav"
-            mp3_name="${num}-${base}.mp3"
-            flac_name="${num}-${base}.flac"
+        # Check if file is already processed (has number prefix)
+        if [[ "$file" =~ ^[0-9]{3}- ]]; then
+            # File is already processed, use its existing name structure (basename without extension)
+            base_name="${file%.wav}"
+            wav_name="$file"
+            mp3_name="${base_name}.mp3"
+            flac_name="${base_name}.flac"
         else
-            # File doesn't have album name, add it
-            wav_name="${num}-${base}-${album}.wav"
-            mp3_name="${num}-${base}-${album}.mp3"
-            flac_name="${num}-${base}-${album}.flac"
+            # File is not processed, create new numbered names
+            # Check if the base already contains the album name to avoid duplication
+            if [[ "$base" == *"-${album}" ]]; then
+                # File already has album name, don't add it again
+                wav_name="${num}-${base}.wav"
+                mp3_name="${num}-${base}.mp3"
+                flac_name="${num}-${base}.flac"
+            else
+                # File doesn't have album name, add it
+                wav_name="${num}-${base}-${album}.wav"
+                mp3_name="${num}-${base}-${album}.mp3"
+                flac_name="${num}-${base}-${album}.flac"
+            fi
         fi
 
         case $FORMAT in
@@ -320,31 +331,64 @@ for file in *.wav; do
             "all")
                 # Rename WAV and create MP3 and FLAC copies
                 wav_success=false
+                source_wav="$file"
                 
-                # Rename WAV file
-                if mv "$file" "$wav_name"; then
-                    echo "✓ Renamed WAV: $wav_name"
+                # Check if file is already processed (numbered)
+                if [[ "$file" =~ ^[0-9]{3}- ]]; then
+                    # File is already processed, use it as source
+                    echo "Using already processed WAV: $file"
                     wav_success=true
+                    source_wav="$file"
                     ((processed_files++))
                 else
-                    echo "✗ Failed to rename WAV: $file"
-                fi
-                
-                # Convert to MP3 from the renamed WAV file
-                if [[ "$wav_success" == true ]]; then
-                    if convert_to_mp3 "$wav_name" "$mp3_name"; then
-                        echo "✓ Created MP3 copy: $mp3_name"
+                    # Rename WAV file
+                    if mv "$file" "$wav_name"; then
+                        echo "✓ Renamed WAV: $wav_name"
+                        wav_success=true
+                        source_wav="$wav_name"
+                        ((processed_files++))
                     else
-                        ((conversion_errors++))
+                        echo "✗ Failed to rename WAV: $file"
                     fi
                 fi
                 
-                # Convert to FLAC from the renamed WAV file
+                # Convert to MP3 from the source WAV file
                 if [[ "$wav_success" == true ]]; then
-                    if convert_to_flac "$wav_name" "$flac_name"; then
-                        echo "✓ Created FLAC copy: $flac_name"
+                    # Check if MP3 already exists
+                    if [[ -f "$mp3_name" ]]; then
+                        if confirm_overwrite "MP3" "$mp3_name"; then
+                            if convert_to_mp3 "$source_wav" "$mp3_name"; then
+                                echo "✓ Created MP3 copy: $mp3_name"
+                            else
+                                ((conversion_errors++))
+                            fi
+                        fi
                     else
-                        ((conversion_errors++))
+                        if convert_to_mp3 "$source_wav" "$mp3_name"; then
+                            echo "✓ Created MP3 copy: $mp3_name"
+                        else
+                            ((conversion_errors++))
+                        fi
+                    fi
+                fi
+                
+                # Convert to FLAC from the source WAV file
+                if [[ "$wav_success" == true ]]; then
+                    # Check if FLAC already exists
+                    if [[ -f "$flac_name" ]]; then
+                        if confirm_overwrite "FLAC" "$flac_name"; then
+                            if convert_to_flac "$source_wav" "$flac_name"; then
+                                echo "✓ Created FLAC copy: $flac_name"
+                            else
+                                ((conversion_errors++))
+                            fi
+                        fi
+                    else
+                        if convert_to_flac "$source_wav" "$flac_name"; then
+                            echo "✓ Created FLAC copy: $flac_name"
+                        else
+                            ((conversion_errors++))
+                        fi
                     fi
                 fi
                 ;;
