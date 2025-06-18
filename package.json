@@ -1,0 +1,46 @@
+{
+  "name": "music-publisher-cli",
+  "version": "1.0.0",
+  "description": "Node.js CLI for automated music publishing via FUGA and TuneCore",
+  "type": "module",
+  "main": "src/index.js",
+  "bin": {
+    "music-publish": "src/cli.js"
+  },
+  "scripts": {
+    "start": "node src/cli.js",
+    "test": "mocha test/**/*.test.js",
+    "test:watch": "mocha test/**/*.test.js --watch",
+    "test:coverage": "c8 mocha test/**/*.test.js",
+    "lint": "eslint src/ test/",
+    "lint:fix": "eslint src/ test/ --fix",
+    "format": "prettier --write src/ test/",
+    "format:check": "prettier --check src/ test/"
+  },
+  "keywords": [
+    "music",
+    "distribution",
+    "tunecore",
+    "cli",
+    "automation",
+    "audio"
+  ],
+  "author": "RooCode",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "commander": "^12.0.0",
+    "dotenv": "^16.4.0",
+    "ora": "^8.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "c8": "^9.1.0",
+    "chai": "^5.1.0",
+    "eslint": "^9.0.0",
+    "mocha": "^10.3.0",
+    "prettier": "^3.2.0"
+  }
+}

@@ -1,269 +1,244 @@
-# Music File Organizer
+# Music Publisher CLI
 
-A bash script for organizing and converting audio files with automatic numbering and directory structure creation.
-
-## Overview
-
-The `move.sh` script helps organize WAV audio files by:
-- Renaming files with sequential numbering (001, 002, etc.)
-- Processing files in-place within their current directory
-- Converting WAV files to high-quality MP3 and FLAC formats using @profullstack/transcoder
-- Supporting multiple output formats (WAV, MP3, FLAC, or all)
-
-## About ProFullStack Music
-
-This tool is part of the [Profullstack Music](https://music.profullstack.com) ecosystem - a music distribution and band promotion platform. We specialize in:
-
-- **Music Distribution**: Getting your music on all major streaming platforms
-- **Band Promotion**: Marketing and promotional services for independent artists
-- **Audio Production Tools**: Professional-grade tools for music production and organization
-
-Visit [music.profullstack.com](https://music.profullstack.com) to learn more about our music services and how we can help promote your band or distribute your music worldwide.
-
-## Prerequisites
-
-- **Bash shell** (Linux/macOS/WSL)
-- **Node.js** (required for @profullstack/transcoder)
-- **@profullstack/transcoder CLI** (globally installed)
-
-### Installing Dependencies
-
-```bash
-# Install Node.js first
-# Ubuntu/Debian
-curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
-sudo apt-get install -y nodejs
-
-# macOS (with Homebrew)
-brew install node
-
-# Install @profullstack/transcoder globally
-pnpm add -g @profullstack/transcoder
-
-# Or with npm
-npm install -g @profullstack/transcoder
-```
-
-## Usage
-
-```bash
-./move.sh [--mp3|--wav|--flac|--all] [directory_path]
-```
-
-### Command-line Options
-
-| Option | Description |
-|--------|-------------|
-| `--mp3` | Convert WAV files to MP3 in the same directory |
-| `--wav` | Rename WAV files with sequential numbering (default behavior) |
-| `--flac` | Convert WAV files to FLAC in the same directory |
-| `--all` | Rename WAV files AND create MP3 and FLAC copies in the same directory |
-| `--help`, `-h` | Display help information |
-
-### Arguments
-
-- `directory_path`: Directory containing WAV files (default: current directory)
-
-## Examples
-
-### Convert to MP3 only (in current directory)
-```bash
-./move.sh --mp3
-```
-
-### Convert to MP3 in specific directory
-```bash
-./move.sh --mp3 "./Velocity Vibe/Pulse Revolution"
-```
-
-### Convert to FLAC in specific directory
-```bash
-./move.sh --flac "./Velocity Vibe/Pulse Revolution"
-```
-
-### Rename WAV files (default)
-```bash
-./move.sh "./Velocity Vibe/Pulse Revolution"
-# or simply
-./move.sh --wav "./Velocity Vibe/Pulse Revolution"
-```
-
-### Keep WAV and create MP3 and FLAC copies
-```bash
-./move.sh --all "./Velocity Vibe/Pulse Revolution"
-```
-
-### Display help
-```bash
-./move.sh --help
-```
-
-## File Naming Convention
-
-The script automatically renames files using this pattern:
-```
-{counter}-{original_name}-{album_name}.{extension}
-```
-
-**Example:**
-- Original: `track1.wav`
-- Working directory: `./Velocity Vibe/Pulse Revolution`
-- Result: `001-track1-Pulse Revolution.wav`
-
-## Audio Conversion Settings
-
-When converting audio files, the script uses @profullstack/transcoder CLI with high-quality settings:
-
-**MP3 Conversion:**
-- **Audio Codec**: libmp3lame
-- **Bitrate**: 320 kbps (highest quality)
-- **Format**: MP3
-
-**FLAC Conversion:**
-- **Audio Codec**: flac
-- **Format**: FLAC (lossless compression)
-
-**Tool**: @profullstack/transcoder CLI
+A unified Node.js CLI tool for automated music publishing to multiple platforms including FUGA and TuneCore. The tool automatically detects the appropriate platform based on your directory structure and metadata format.
 
 ## Features
 
-### ✅ In-Place Processing
-- Works directly in the directory containing WAV files
-- No complex directory structures needed
+- **Unified Publishing**: Single command publishes to FUGA or TuneCore automatically
+- **Platform Auto-Detection**: Automatically detects platform based on metadata structure
+- **Dual Metadata Support**: 
+  - FUGA: Uses embedded metadata from audio files
+  - TuneCore: Uses structured `metadata.json` files
+- **Comprehensive Validation**: Validates metadata, file formats, and API configurations
+- **Progress Tracking**: Real-time upload progress with ora spinners
+- **Robust Error Handling**: Retry mechanisms and detailed error reporting
+- **Test Coverage**: 64+ comprehensive tests with Mocha and Chai
 
-### ✅ Sequential Numbering
-- Automatically numbers files with leading zeros (001, 002, 003...)
-- Maintains consistent ordering
+## Installation
 
-### ✅ Error Handling
-- Validates command-line arguments
-- Checks for Node.js/npx availability
-- Provides clear error messages
-- Tracks processing statistics
-
-### ✅ Progress Tracking
-- Visual indicators (✓ for success, ✗ for errors)
-- Processing summary with file counts
-- Conversion error tracking
-
-### ✅ Flexible Output Formats
-- WAV-only processing (default)
-- MP3-only conversion
-- Dual format output (both WAV and MP3)
-
-### ✅ Node.js-Based Transcoding
-- Uses @profullstack/transcoder for reliable audio conversion
-- Automatically downloads transcoder via npx when needed
-
-## Script Behavior
-
-### WAV Mode (`--wav`)
-1. Renames WAV files with sequential numbering in the same directory
-2. Files are renamed in-place
-
-### MP3 Mode (`--mp3`)
-1. Converts WAV files to high-quality MP3 in the same directory
-2. Original WAV files are deleted after successful conversion
-
-### Both Mode (`--both`)
-1. Renames WAV files with sequential numbering
-2. Creates MP3 copies from the renamed WAV files
-3. Both formats are preserved in the same directory
-
-## Error Handling
-
-The script handles various error conditions:
-
-- **Missing transcoder CLI**: Provides installation instructions
-- **Invalid arguments**: Shows usage information
-- **Directory access failures**: Reports specific errors
-- **Conversion failures**: Tracks and reports failed conversions
-- **No WAV files found**: Warns if no input files are available
-
-## Output Example
-
-```
-Processing WAV files with format: all
-Working directory: ./Velocity Vibe/Pulse Revolution
-
-✓ Renamed WAV: 001-Deployed-Pulse Revolution.wav
-Converting: 001-Deployed-Pulse Revolution.wav -> 001-Deployed-Pulse Revolution.mp3
-✓ Conversion successful: 001-Deployed-Pulse Revolution.mp3
-✓ Created MP3 copy: 001-Deployed-Pulse Revolution.mp3
-Converting: 001-Deployed-Pulse Revolution.wav -> 001-Deployed-Pulse Revolution.flac
-✓ Conversion successful: 001-Deployed-Pulse Revolution.flac
-✓ Created FLAC copy: 001-Deployed-Pulse Revolution.flac
-✓ Renamed WAV: 002-Integration-Pulse Revolution.wav
-Converting: 002-Integration-Pulse Revolution.wav -> 002-Integration-Pulse Revolution.mp3
-✓ Conversion successful: 002-Integration-Pulse Revolution.mp3
-✓ Created MP3 copy: 002-Integration-Pulse Revolution.mp3
-Converting: 002-Integration-Pulse Revolution.wav -> 002-Integration-Pulse Revolution.flac
-✓ Conversion successful: 002-Integration-Pulse Revolution.flac
-✓ Created FLAC copy: 002-Integration-Pulse Revolution.flac
-
-=== Processing Complete ===
-Files processed: 2
-Conversion errors: 0
-Working directory: /home/user/music/Velocity Vibe/Pulse Revolution
-```
-
-## Troubleshooting
-
-### Transcoder CLI not found
-```
-Error: transcoder CLI is required but not found.
-Please install it with: pnpm add -g @profullstack/transcoder
-```
-**Solution**: Install @profullstack/transcoder globally using pnpm or npm.
-
-### No WAV files found
-```
-Warning: No WAV files found in directory: ./some/path
-```
-**Solution**: Ensure the specified directory contains `.wav` files.
-
-### Permission denied
-```
-Permission denied: ./move.sh
-```
-**Solution**: Make the script executable:
 ```bash
-chmod +x move.sh
+# Install dependencies
+pnpm install
+
+# Install globally (optional)
+pnpm link
 ```
 
-## File Structure Example
+## Configuration
 
-Before running the script:
+Create a `.env` file with your API credentials:
+
+```bash
+# FUGA Configuration (optional)
+FUGA_API_TOKEN=your_fuga_api_token
+FUGA_CLIENT_ID=your_fuga_client_id
+FUGA_CLIENT_SECRET=your_fuga_client_secret
+FUGA_API_BASE_URL=https://api.fuga.com
+
+# TuneCore Configuration (optional)
+TUNECORE_PARTNER_ID=your_partner_id
+TUNECORE_API_KEY=your_api_key
+TUNECORE_API_BASE_URL=https://api.tunecore.com
+
+# General Settings
+MAX_CONCURRENT_UPLOADS=3
+UPLOAD_TIMEOUT_MS=300000
+RETRY_ATTEMPTS=3
+RETRY_DELAY_MS=5000
+LOG_LEVEL=info
 ```
-current_directory/
-├── move.sh
-├── track1.wav
-├── track2.wav
-└── track3.wav
+
+**Note**: You only need to configure the platform(s) you plan to use. The tool will automatically detect which platform to use based on your directory structure.
+
+## Usage
+
+### Basic Commands
+
+```bash
+# Publish music (auto-detects platform)
+music-publish publish ./my-album
+
+# Force specific platform
+music-publish publish ./my-album --platform tunecore
+
+# Validate without publishing
+music-publish publish ./my-album --dry-run
+
+# Validate directory structure
+music-publish validate ./my-album
+
+# Show platform information
+music-publish platforms
+
+# Detect platform for directory
+music-publish detect ./my-album
 ```
 
-After running `./move.sh --both ./Artist/Album`:
+### Platform Detection
+
+The tool automatically detects which platform to use:
+
+- **TuneCore**: Directories containing `metadata.json` files
+- **FUGA**: Directories with embedded metadata in audio files
+
+## Directory Structures
+
+### TuneCore Format (Structured Metadata)
+
 ```
-current_directory/
-├── move.sh
-└── Artist/
-    └── Album/
-        ├── 001-track1-Album.wav
-        ├── 001-track1-Album.mp3
-        ├── 002-track2-Album.wav
-        ├── 002-track2-Album.mp3
-        ├── 003-track3-Album.wav
-        └── 003-track3-Album.mp3
+my-album/
+├── metadata.json          # Album and track metadata
+├── track1.mp3
+├── track2.mp3
+└── cover.jpg
 ```
 
-## Support This Project
+**metadata.json example:**
+```json
+{
+  "title": "My Album",
+  "artist": "My Artist",
+  "upc": "123456789012",
+  "releaseDate": "2024-01-15",
+  "genre": "Pop",
+  "tracks": [
+    {
+      "title": "Track 1",
+      "isrc": "US1234567890",
+      "duration": 180
+    },
+    {
+      "title": "Track 2", 
+      "isrc": "US1234567891",
+      "duration": 200
+    }
+  ]
+}
+```
 
-If you find this music file organizer helpful for your audio production workflow, consider supporting continued development:
+### FUGA Format (Embedded Metadata)
 
-[![Crypto Payment](https://paybadge.profullstack.com/badge.svg)](https://paybadge.profullstack.com/?tickers=btc%2Ceth%2Csol%2Cusdc)
+```
+Artist Name/
+└── Album Name/
+    ├── 01 - Track 1.mp3    # Embedded metadata
+    ├── 02 - Track 2.mp3    # Embedded metadata
+    └── cover.jpg
+```
 
-Your support helps us maintain and improve this tool, as well as develop new features for the music production community.
+Audio files should contain embedded metadata (ID3 tags) with:
+- Title, Artist, Album
+- Track number, Genre
+- Optional: ISRC, UPC
+
+## API Reference
+
+### Publisher Class
+
+```javascript
+import { Publisher } from './src/services/publisher.js';
+
+const publisher = new Publisher();
+
+// Detect platform
+const platform = await publisher.detectPlatform('./my-album');
+
+// Publish to detected platform
+const result = await publisher.publish('./my-album', config);
+```
+
+### Platform Requirements
+
+```javascript
+// Get platform requirements
+const requirements = publisher.getPlatformRequirements('tunecore');
+console.log(requirements);
+// {
+//   configFields: ['partnerId', 'apiKey', 'baseUrl'],
+//   metadataSource: 'structured',
+//   supportedFormats: ['mp3', 'wav', 'flac'],
+//   description: 'Requires metadata.json file...'
+// }
+```
+
+## Development
+
+### Running Tests
+
+```bash
+# Run all tests
+pnpm test
+
+# Run specific test file
+pnpm test -- --grep "Publisher"
+
+# Run with coverage
+pnpm run test:coverage
+```
+
+### Code Quality
+
+```bash
+# Lint code
+pnpm run lint
+
+# Format code
+pnpm run format
+
+# Type checking (if using TypeScript)
+pnpm run type-check
+```
+
+## Architecture
+
+### Core Components
+
+- **Publisher**: Unified service that handles both platforms
+- **FugaClient**: FUGA API integration with embedded metadata
+- **TuneCoreClient**: TuneCore API integration with structured metadata
+- **FileScanner**: Scans directories for audio files and embedded metadata
+- **MetadataScanner**: Handles structured metadata.json files
+- **CLI**: Command-line interface with auto-detection
+
+### Platform Detection Logic
+
+1. Check for `metadata.json` files in directory
+2. If found → TuneCore (structured metadata)
+3. If not found → FUGA (embedded metadata)
+
+### Error Handling
+
+- Automatic retry with exponential backoff
+- Detailed error messages with context
+- Graceful degradation for network issues
+- Validation before upload to prevent API errors
+
+## Supported Formats
+
+- **Audio**: MP3, WAV, FLAC
+- **Images**: JPG, PNG (for cover art)
+- **Metadata**: ID3 tags, JSON files
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Write tests for new functionality
+4. Ensure all tests pass
+5. Submit a pull request
 
 ## License
 
-This script is provided as-is for any use. See LICENSE
+MIT License - see LICENSE file for details.
+
+## Support
+
+For issues and questions:
+- Check the documentation above
+- Run `music-publish platforms` for configuration help
+- Review test files for usage examples
+- Open an issue on GitHub
+
+---
+
+**Built with Node.js 20+, ESM modules, and modern JavaScript features.**
