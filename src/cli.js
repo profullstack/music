@@ -6,6 +6,7 @@ import ora from 'ora';
 import { Publisher } from './services/publisher.js';
 import { SunoClient } from './api/suno-client.js';
 import { Generator } from './services/generator.js';
+import { AlbumGenerator } from './services/album-generator.js';
 
 /**
  * CLI class for the unified Music Publishing tool
@@ -71,8 +72,10 @@ export class CLI {
     this.program
       .command('generate')
       .description('Generate a song using AI (Suno API)')
-      .requiredOption('-t, --title <title>', 'Song title')
-      .requiredOption('-l, --lyrics <file>', 'Path to lyrics file')
+      .option('-t, --title <title>', 'Song title (required for single songs)')
+      .option('-l, --lyrics <file>', 'Path to lyrics file (required for single songs)')
+      .option('-a, --album <file>', 'Path to album configuration file')
+      .option('-c, --count <number>', 'Number of song variations to generate', '1')
       .option('-s, --style <style>', 'Musical style/genre')
       .option('-o, --output <directory>', 'Output directory', './songs')
       .option('-f, --format <format>', 'Output format (mp3|wav)', 'mp3')
@@ -372,20 +375,35 @@ export class CLI {
     const spinner = ora('Initializing song generation...').start();
 
     try {
-      // Validate required options
-      if (!options.title) {
-        throw new Error('Title is required');
+      // Validate required options based on mode
+      if (options.album) {
+        // Album generation mode
+        if (options.title || options.lyrics) {
+          throw new Error('Cannot specify --title or --lyrics when using --album mode');
+        }
+      } else {
+        // Single song generation mode
+        if (!options.title) {
+          throw new Error('Title is required for single song generation');
+        }
+        if (!options.lyrics) {
+          throw new Error('Lyrics file path is required for single song generation');
+        }
       }
 
-      if (!options.lyrics) {
-        throw new Error('Lyrics file path is required');
-      }
-
-      // Validate lyrics file exists
-      try {
-        await import('fs').then(fs => fs.promises.access(options.lyrics));
-      } catch (error) {
-        throw new Error(`Lyrics file not found: ${options.lyrics}`);
+      // Validate files exist
+      if (options.album) {
+        try {
+          await import('fs').then(fs => fs.promises.access(options.album));
+        } catch (error) {
+          throw new Error(`Album configuration file not found: ${options.album}`);
+        }
+      } else {
+        try {
+          await import('fs').then(fs => fs.promises.access(options.lyrics));
+        } catch (error) {
+          throw new Error(`Lyrics file not found: ${options.lyrics}`);
+        }
       }
 
       // Validate format
@@ -394,44 +412,24 @@ export class CLI {
         throw new Error(`Invalid format: ${options.format}. Supported formats: ${validFormats.join(', ')}`);
       }
 
+      // Validate count
+      if (options.count) {
+        const count = parseInt(options.count, 10);
+        if (isNaN(count) || count < 1 || count > 20) {
+          throw new Error('Count must be a number between 1 and 20');
+        }
+      }
+
       // Validate Suno configuration
       this.validateGenerateConfig(this.config);
 
       spinner.succeed('Configuration validated');
-      spinner.start('Starting song generation...');
 
-      // Create generator
-      const generator = this.createGenerator(this.config);
-
-      // Prepare generation options
-      const generateOptions = {
-        title: options.title,
-        lyricsPath: options.lyrics,
-        style: options.style,
-        output: options.output || './songs',
-        format: options.format?.toLowerCase() || 'mp3'
-      };
-
-      // Generate song with progress tracking
-      const result = await generator.generate(generateOptions, (progress) => {
-        spinner.text = this.formatGenerateProgressText(progress);
-      });
-
-      spinner.succeed('Song generated successfully!');
-
-      // Display results
-      console.log(`🎵 Title: ${options.title}`);
-      console.log(`📁 Saved to: ${result.filePath}`);
-      console.log(`🆔 Song ID: ${result.songId}`);
-      console.log(`📊 Format: ${result.format?.toUpperCase() || generateOptions.format.toUpperCase()}`);
-      console.log(`📏 Size: ${Math.round(result.fileSize / 1024)} KB`);
-
-      if (options.verbose) {
-        console.log('\nGeneration details:');
-        console.log(JSON.stringify(result, null, 2));
+      if (options.album) {
+        return await this.handleAlbumGeneration(options, spinner);
+      } else {
+        return await this.handleSongGeneration(options, spinner);
       }
-
-      return result;
 
     } catch (error) {
       spinner.fail('Song generation failed');
@@ -467,6 +465,104 @@ export class CLI {
   }
 
   /**
+   * Handle single song generation
+   * @param {Object} options - Command options
+   * @param {Object} spinner - Ora spinner instance
+   * @returns {Promise<Object>} Generation result
+   */
+  async handleSongGeneration(options, spinner) {
+    const count = parseInt(options.count || '1', 10);
+    
+    if (count === 1) {
+      spinner.start('Starting song generation...');
+      
+      // Single song generation
+      const generator = this.createGenerator(this.config);
+      const generateOptions = {
+        title: options.title,
+        lyricsPath: options.lyrics,
+        style: options.style,
+        output: options.output || './songs',
+        format: options.format?.toLowerCase() || 'mp3'
+      };
+
+      const result = await generator.generate(generateOptions, (progress) => {
+        spinner.text = this.formatGenerateProgressText(progress);
+      });
+
+      spinner.succeed('Song generated successfully!');
+      this.displaySongResult(result, options);
+      return result;
+      
+    } else {
+      spinner.start(`Starting generation of ${count} song variations...`);
+      
+      // Multiple song generation
+      const albumGenerator = this.createAlbumGenerator(this.config);
+      const generateOptions = {
+        title: options.title,
+        lyricsPath: options.lyrics,
+        count,
+        style: options.style,
+        output: options.output || './songs',
+        format: options.format?.toLowerCase() || 'mp3'
+      };
+
+      const results = await albumGenerator.generateMultipleSongs(generateOptions, (progress) => {
+        spinner.text = this.formatMultipleProgressText(progress);
+      });
+
+      const successCount = results.filter(r => r.success).length;
+      const failureCount = results.length - successCount;
+
+      if (failureCount === 0) {
+        spinner.succeed(`Generated ${successCount} song variations successfully!`);
+      } else {
+        spinner.warn(`Generated ${successCount} songs, ${failureCount} failed`);
+      }
+
+      this.displayMultipleResults(results, options);
+      return results;
+    }
+  }
+
+  /**
+   * Handle album generation
+   * @param {Object} options - Command options
+   * @param {Object} spinner - Ora spinner instance
+   * @returns {Promise<Object>} Album generation result
+   */
+  async handleAlbumGeneration(options, spinner) {
+    spinner.start('Loading album configuration...');
+    
+    const albumGenerator = this.createAlbumGenerator(this.config);
+    const albumConfig = await albumGenerator.loadAlbumConfig(options.album);
+    
+    spinner.text = `Starting album generation: "${albumConfig.title}" (${albumConfig.tracks.length} tracks)`;
+
+    const albumOptions = {
+      albumConfig,
+      output: options.output || './albums',
+      format: options.format?.toLowerCase() || 'mp3'
+    };
+
+    const result = await albumGenerator.generateAlbum(albumOptions, (progress) => {
+      spinner.text = this.formatAlbumProgressText(progress);
+    });
+
+    if (result.success && result.failedTracks.length === 0) {
+      spinner.succeed(`Album "${result.albumTitle}" generated successfully!`);
+    } else if (result.tracks.length > 0) {
+      spinner.warn(`Album partially generated: ${result.tracks.length} succeeded, ${result.failedTracks.length} failed`);
+    } else {
+      spinner.fail('Album generation failed');
+    }
+
+    this.displayAlbumResult(result, options);
+    return result;
+  }
+
+  /**
    * Create a Generator instance with Suno client
    * @param {Object} config - Configuration object
    * @returns {Generator} Configured generator instance
@@ -478,6 +574,101 @@ export class CLI {
     });
 
     return new Generator(sunoClient);
+  }
+
+  /**
+   * Create an AlbumGenerator instance with Suno client
+   * @param {Object} config - Configuration object
+   * @returns {AlbumGenerator} Configured album generator instance
+   */
+  createAlbumGenerator(config) {
+    const sunoClient = new SunoClient({
+      apiToken: config.suno.apiToken,
+      baseUrl: config.suno.baseUrl
+    });
+
+    return new AlbumGenerator(sunoClient);
+  }
+
+  /**
+   * Display single song generation result
+   * @param {Object} result - Generation result
+   * @param {Object} options - Command options
+   */
+  displaySongResult(result, options) {
+    console.log(`🎵 Title: ${result.title || options.title}`);
+    console.log(`📁 Saved to: ${result.filePath}`);
+    console.log(`🆔 Song ID: ${result.songId}`);
+    console.log(`📊 Format: ${result.format?.toUpperCase() || options.format?.toUpperCase() || 'MP3'}`);
+    console.log(`📏 Size: ${Math.round((result.fileSize || 0) / 1024)} KB`);
+
+    if (options.verbose) {
+      console.log('\nGeneration details:');
+      console.log(JSON.stringify(result, null, 2));
+    }
+  }
+
+  /**
+   * Display multiple song generation results
+   * @param {Array} results - Array of generation results
+   * @param {Object} options - Command options
+   */
+  displayMultipleResults(results, options) {
+    console.log(`\n🎵 Generated ${results.length} song variations:`);
+    
+    results.forEach((result, index) => {
+      if (result.success) {
+        console.log(`  ${index + 1}. ✅ ${result.title || `Song ${index + 1}`}`);
+        console.log(`     📁 ${result.filePath}`);
+        console.log(`     🆔 ${result.songId}`);
+      } else {
+        console.log(`  ${index + 1}. ❌ ${result.title || `Song ${index + 1}`}`);
+        console.log(`     💥 ${result.error}`);
+      }
+    });
+
+    if (options.verbose) {
+      console.log('\nDetailed results:');
+      console.log(JSON.stringify(results, null, 2));
+    }
+  }
+
+  /**
+   * Display album generation result
+   * @param {Object} result - Album generation result
+   * @param {Object} options - Command options
+   */
+  displayAlbumResult(result, options) {
+    console.log(`\n🎵 Album: "${result.albumTitle}"`);
+    if (result.artist) {
+      console.log(`🎤 Artist: ${result.artist}`);
+    }
+    console.log(`📁 Saved to: ${result.albumDir}`);
+    console.log(`📊 Tracks: ${result.tracks.length} successful, ${result.failedTracks.length} failed`);
+    
+    if (result.metadataPath) {
+      console.log(`📋 Metadata: ${result.metadataPath}`);
+    }
+
+    console.log('\n🎵 Track listing:');
+    result.tracks.forEach((track) => {
+      console.log(`  ${track.trackNumber}. ✅ ${track.title}`);
+      console.log(`     📁 ${track.filePath}`);
+      console.log(`     🆔 ${track.songId}`);
+    });
+
+    if (result.failedTracks.length > 0) {
+      console.log('\n❌ Failed tracks:');
+      result.failedTracks.forEach((track) => {
+        console.log(`  ${track.trackNumber}. ${track.title}`);
+        console.log(`     💥 ${track.error}`);
+      });
+    }
+
+    if (options.verbose) {
+      console.log('\nDetailed album results:');
+      console.log(JSON.stringify(result, null, 2));
+    }
   }
 
   /**
@@ -505,6 +696,39 @@ export class CLI {
         return `Generation complete! ${percentage}%`;
       default:
         return `Generating song... ${percentage}%`;
+    }
+  }
+
+  /**
+   * Format progress text for multiple song generation
+   * @param {Object} progress - Progress information
+   * @returns {string} Formatted progress text
+   */
+  formatMultipleProgressText(progress) {
+    const { currentTrack, totalTracks, progress: percentage } = progress;
+    const overallProgress = Math.round(percentage || 0);
+    
+    return `Generating song ${currentTrack}/${totalTracks}... ${overallProgress}%`;
+  }
+
+  /**
+   * Format progress text for album generation
+   * @param {Object} progress - Progress information
+   * @returns {string} Formatted progress text
+   */
+  formatAlbumProgressText(progress) {
+    const { currentTrack, totalTracks, albumProgress, trackTitle } = progress;
+    const percentage = Math.round(albumProgress || 0);
+    
+    switch (progress.step) {
+      case 'generating_track':
+        return `Generating "${trackTitle}" (${currentTrack}/${totalTracks})... ${percentage}%`;
+      case 'creating_metadata':
+        return `Creating album metadata... ${percentage}%`;
+      case 'complete':
+        return `Album generation complete! ${percentage}%`;
+      default:
+        return `Processing track ${currentTrack}/${totalTracks}... ${percentage}%`;
     }
   }
 

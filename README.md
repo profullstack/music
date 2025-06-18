@@ -39,9 +39,13 @@ FUGA_API_BASE_URL=https://api.fuga.com
 # TuneCore Configuration (optional)
 TUNECORE_PARTNER_ID=your_partner_id
 TUNECORE_API_KEY=your_api_key
-# Suno AI Configuration (optional)
-SUNO_API_TOKEN=your_suno_token
-SUNO_API_BASE=https://api.sunoapi.org
+# AI Music Generation Configuration (optional)
+# Note: Unofficial Suno API has been discontinued
+# See TODO-API-ALTERNATIVES.md for current options
+MUSIC_PROVIDER=musicgen
+MUSICGEN_API_TOKEN=your_huggingface_token
+UDIO_API_TOKEN=your_udio_token
+MUBERT_API_TOKEN=your_mubert_token
 TUNECORE_API_BASE_URL=https://api.tunecore.com
 
 # General Settings
@@ -88,6 +92,25 @@ publish generate --title "Rock Anthem" --lyrics ./lyrics.txt --style "heavy meta
 # Specify output directory and format
 publish generate --title "Jazz Tune" --lyrics ./lyrics.txt --output ./songs --format wav
 
+## ⚠️ Important Notice: AI Music Generation APIs
+
+**The unofficial Suno API (sunoapi.org) has been discontinued.** The current implementation includes a complete framework for AI music generation, but requires updating to use alternative providers.
+
+### Available Alternatives:
+
+1. **Udio** - Similar to Suno, unofficial API wrappers available
+2. **MusicGen by Meta** - Open source, available via Hugging Face API
+3. **Mubert** - Commercial API with royalty-free music
+4. **Stable Audio** - High-quality generation by Stability AI
+5. **Local MusicGen** - Run MusicGen locally without API costs
+
+See [`TODO-API-ALTERNATIVES.md`](TODO-API-ALTERNATIVES.md) for detailed implementation plans and migration strategies.
+
+### Current Status:
+- ✅ **CLI Framework**: Complete with album generation, multiple songs, progress tracking
+- ✅ **Architecture**: Modular design ready for multiple providers
+- ⚠️ **API Integration**: Needs update to working music generation service
+- ✅ **Tests**: 135 comprehensive tests covering all functionality
 # Generate with all options
 publish generate \
   --title "Epic Journey" \

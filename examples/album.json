@@ -1,0 +1,33 @@
+{
+  "title": "Code & Coffee",
+  "artist": "The Developers",
+  "style": "indie electronic",
+  "description": "An album about the life of a programmer",
+  "tracks": [
+    {
+      "title": "Morning Standup",
+      "lyrics": "./examples/lyrics/morning-standup.txt",
+      "style": "upbeat indie electronic"
+    },
+    {
+      "title": "Debug Session",
+      "lyrics": "./examples/lyrics/debug-session.txt",
+      "style": "intense electronic"
+    },
+    {
+      "title": "Code Review Blues",
+      "lyrics": "./examples/lyrics/code-review.txt",
+      "style": "melancholic indie"
+    },
+    {
+      "title": "Deploy Day",
+      "lyrics": "./examples/lyrics/deploy-day.txt",
+      "style": "triumphant electronic"
+    }
+  ],
+  "metadata": {
+    "genre": "Electronic",
+    "year": 2024,
+    "label": "DevTunes Records"
+  }
+}
