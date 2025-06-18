@@ -47,7 +47,7 @@ describe('CLI', () => {
 
       const result = cli.validateEnvironment(mockEnv);
       expect(result.valid).to.be.false;
-      expect(result.errors).to.include('At least one platform must be configured (FUGA or TuneCore)');
+      expect(result.errors).to.include('At least one platform must be configured (FUGA, TuneCore, or Suno)');
     });
 
     it('should provide helpful error messages', () => {
@@ -57,6 +57,7 @@ describe('CLI', () => {
       expect(result.valid).to.be.false;
       expect(result.errors).to.include('FUGA requires: FUGA_API_TOKEN, FUGA_CLIENT_ID, FUGA_CLIENT_SECRET');
       expect(result.errors).to.include('TuneCore requires: TUNECORE_PARTNER_ID, TUNECORE_API_KEY');
+      expect(result.errors).to.include('Suno requires: SUNO_API_TOKEN');
     });
   });
 

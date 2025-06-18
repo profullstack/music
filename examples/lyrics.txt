@@ -1,0 +1,34 @@
+Verse 1:
+In the digital realm where code comes alive
+Every function and class helps the system thrive
+Variables dancing through memory space
+While algorithms solve problems with elegant grace
+
+Chorus:
+We're coding through the night
+Building dreams in black and white
+Every bug we debug makes us stronger
+Every feature takes us longer
+But we're coding through the night
+
+Verse 2:
+From the frontend to the backend flow
+APIs connecting what we need to know
+Databases storing all our precious data
+While frameworks help us build things that matter
+
+(Repeat Chorus)
+
+Bridge:
+Stack overflow when we're feeling lost
+Open source saves us whatever the cost
+Git commits tell our story true
+Every merge request brings something new
+
+(Final Chorus)
+We're coding through the night
+Building dreams in black and white
+Every bug we debug makes us stronger
+Every feature takes us longer
+But we're coding through the night
+Yeah, we're coding through the night!

@@ -4,6 +4,8 @@ import { Command } from 'commander';
 import { config } from 'dotenv';
 import ora from 'ora';
 import { Publisher } from './services/publisher.js';
+import { SunoClient } from './api/suno-client.js';
+import { Generator } from './services/generator.js';
 
 /**
  * CLI class for the unified Music Publishing tool
@@ -64,6 +66,20 @@ export class CLI {
       .action(async (directory) => {
         await this.handleDetectCommand(directory);
       });
+
+    // Generate command
+    this.program
+      .command('generate')
+      .description('Generate a song using AI (Suno API)')
+      .requiredOption('-t, --title <title>', 'Song title')
+      .requiredOption('-l, --lyrics <file>', 'Path to lyrics file')
+      .option('-s, --style <style>', 'Musical style/genre')
+      .option('-o, --output <directory>', 'Output directory', './songs')
+      .option('-f, --format <format>', 'Output format (mp3|wav)', 'mp3')
+      .option('-v, --verbose', 'Verbose output')
+      .action(async (options) => {
+        await this.handleGenerateCommand(options);
+      });
   }
 
   /**
@@ -87,6 +103,11 @@ export class CLI {
         partnerId: process.env.TUNECORE_PARTNER_ID,
         apiKey: process.env.TUNECORE_API_KEY,
         baseUrl: process.env.TUNECORE_API_BASE_URL || 'https://api.tunecore.com',
+      },
+      // Suno configuration
+      suno: {
+        apiToken: process.env.SUNO_API_TOKEN,
+        baseUrl: process.env.SUNO_API_BASE || 'https://api.sunoapi.org',
       },
       // General settings
       maxConcurrentUploads: parseInt(process.env.MAX_CONCURRENT_UPLOADS || '3', 10),
@@ -119,11 +140,13 @@ export class CLI {
     // Check if at least one platform is configured
     const fugaConfigured = env.FUGA_API_TOKEN && env.FUGA_CLIENT_ID && env.FUGA_CLIENT_SECRET;
     const tunecoreConfigured = env.TUNECORE_PARTNER_ID && env.TUNECORE_API_KEY;
+    const sunoConfigured = env.SUNO_API_TOKEN;
 
-    if (!fugaConfigured && !tunecoreConfigured) {
-      errors.push('At least one platform must be configured (FUGA or TuneCore)');
+    if (!fugaConfigured && !tunecoreConfigured && !sunoConfigured) {
+      errors.push('At least one platform must be configured (FUGA, TuneCore, or Suno)');
       errors.push('FUGA requires: FUGA_API_TOKEN, FUGA_CLIENT_ID, FUGA_CLIENT_SECRET');
       errors.push('TuneCore requires: TUNECORE_PARTNER_ID, TUNECORE_API_KEY');
+      errors.push('Suno requires: SUNO_API_TOKEN');
     }
 
     return {
@@ -305,6 +328,10 @@ export class CLI {
     console.log('  TUNECORE_API_KEY=your_api_key');
     console.log('  TUNECORE_API_BASE_URL=https://api.tunecore.com (optional)');
     console.log('');
+    console.log('Suno Configuration:');
+    console.log('  SUNO_API_TOKEN=your_suno_token');
+    console.log('  SUNO_API_BASE=https://api.sunoapi.org (optional)');
+    console.log('');
     console.log('General Settings:');
     console.log('  MAX_CONCURRENT_UPLOADS=3 (optional)');
     console.log('  UPLOAD_TIMEOUT_MS=300000 (optional)');
@@ -334,6 +361,150 @@ export class CLI {
       spinner.fail('Detection failed');
       console.error(`❌ ${error.message}`);
       process.exit(1);
+    }
+  }
+
+  /**
+   * Handle generate command
+   * @param {Object} options - Command options
+   */
+  async handleGenerateCommand(options) {
+    const spinner = ora('Initializing song generation...').start();
+
+    try {
+      // Validate required options
+      if (!options.title) {
+        throw new Error('Title is required');
+      }
+
+      if (!options.lyrics) {
+        throw new Error('Lyrics file path is required');
+      }
+
+      // Validate lyrics file exists
+      try {
+        await import('fs').then(fs => fs.promises.access(options.lyrics));
+      } catch (error) {
+        throw new Error(`Lyrics file not found: ${options.lyrics}`);
+      }
+
+      // Validate format
+      const validFormats = ['mp3', 'wav'];
+      if (options.format && !validFormats.includes(options.format.toLowerCase())) {
+        throw new Error(`Invalid format: ${options.format}. Supported formats: ${validFormats.join(', ')}`);
+      }
+
+      // Validate Suno configuration
+      this.validateGenerateConfig(this.config);
+
+      spinner.succeed('Configuration validated');
+      spinner.start('Starting song generation...');
+
+      // Create generator
+      const generator = this.createGenerator(this.config);
+
+      // Prepare generation options
+      const generateOptions = {
+        title: options.title,
+        lyricsPath: options.lyrics,
+        style: options.style,
+        output: options.output || './songs',
+        format: options.format?.toLowerCase() || 'mp3'
+      };
+
+      // Generate song with progress tracking
+      const result = await generator.generate(generateOptions, (progress) => {
+        spinner.text = this.formatGenerateProgressText(progress);
+      });
+
+      spinner.succeed('Song generated successfully!');
+
+      // Display results
+      console.log(`🎵 Title: ${options.title}`);
+      console.log(`📁 Saved to: ${result.filePath}`);
+      console.log(`🆔 Song ID: ${result.songId}`);
+      console.log(`📊 Format: ${result.format?.toUpperCase() || generateOptions.format.toUpperCase()}`);
+      console.log(`📏 Size: ${Math.round(result.fileSize / 1024)} KB`);
+
+      if (options.verbose) {
+        console.log('\nGeneration details:');
+        console.log(JSON.stringify(result, null, 2));
+      }
+
+      return result;
+
+    } catch (error) {
+      spinner.fail('Song generation failed');
+      console.error(`❌ ${error.message}`);
+      
+      if (options.verbose) {
+        console.error('\nFull error details:');
+        console.error(error.stack);
+      }
+      
+      process.exit(1);
+    }
+  }
+
+  /**
+   * Validate Suno configuration
+   * @param {Object} config - Configuration object
+   * @throws {Error} If Suno configuration is invalid
+   */
+  validateGenerateConfig(config) {
+    if (!config?.suno?.apiToken) {
+      throw new Error('Suno API token is required. Set SUNO_API_TOKEN environment variable.');
+    }
+
+    // Validate base URL if provided
+    if (config.suno.baseUrl) {
+      try {
+        new URL(config.suno.baseUrl);
+      } catch {
+        throw new Error(`Invalid Suno base URL: ${config.suno.baseUrl}`);
+      }
+    }
+  }
+
+  /**
+   * Create a Generator instance with Suno client
+   * @param {Object} config - Configuration object
+   * @returns {Generator} Configured generator instance
+   */
+  createGenerator(config) {
+    const sunoClient = new SunoClient({
+      apiToken: config.suno.apiToken,
+      baseUrl: config.suno.baseUrl
+    });
+
+    return new Generator(sunoClient);
+  }
+
+  /**
+   * Format progress text for song generation
+   * @param {Object} progress - Progress information
+   * @returns {string} Formatted progress text
+   */
+  formatGenerateProgressText(progress) {
+    const percentage = Math.round(progress.progress || 0);
+    
+    switch (progress.step) {
+      case 'reading_lyrics':
+        return `Reading lyrics... ${percentage}%`;
+      case 'preparing':
+        return `Preparing generation... ${percentage}%`;
+      case 'submitting':
+        return `Submitting to Suno API... ${percentage}%`;
+      case 'waiting':
+        return `Waiting for generation... ${percentage}%`;
+      case 'downloading':
+        return `Downloading song... ${percentage}%`;
+      case 'saving':
+        return `Saving file... ${percentage}%`;
+      case 'complete':
+        return `Generation complete! ${percentage}%`;
+      default:
+        return `Generating song... ${percentage}%`;
     }
   }
 
@@ -371,13 +542,14 @@ export class CLI {
    */
   displayHelp() {
     return `
-Music Publishing CLI - Unified FUGA & TuneCore Publisher
+Music Publishing CLI - Unified FUGA, TuneCore & Suno AI Publisher
 
 Usage:
   publish publish <directory>        Publish music (auto-detect platform)
   publish validate <directory>       Validate directory structure
   publish platforms                  Show supported platforms
   publish detect <directory>         Detect platform for directory
+  publish generate                   Generate AI song using Suno API
 
 Options:
   -p, --platform <platform>              Force specific platform (fuga|tunecore)
@@ -386,15 +558,24 @@ Options:
   -h, --help                             Display help information
   --version                              Display version information
 
+Generate Options:
+  -t, --title <title>                    Song title (required)
+  -l, --lyrics <file>                    Path to lyrics file (required)
+  -s, --style <style>                    Musical style/genre (optional)
+  -o, --output <directory>               Output directory (default: ./songs)
+  -f, --format <format>                  Output format: mp3|wav (default: mp3)
+
 Examples:
   publish publish ./my-album
   publish publish ./my-album --platform tunecore
   publish validate ./my-album --dry-run
   publish detect ./my-album
+  publish generate --title "My Song" --lyrics ./lyrics.txt --style "rock"
 
 Platform Detection:
   • TuneCore: Directories with metadata.json files
   • FUGA: Directories with embedded metadata in audio files
+  • Suno: AI song generation via API
 `;
   }
 

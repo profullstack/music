@@ -1,5 +1,6 @@
 # Music Publisher CLI
 
+**NEW: Now includes AI song generation using Suno API!**
 A unified Node.js CLI tool for automated music publishing to multiple platforms including FUGA and TuneCore. The tool automatically detects the appropriate platform based on your directory structure and metadata format.
 
 ## Features
@@ -38,6 +39,9 @@ FUGA_API_BASE_URL=https://api.fuga.com
 # TuneCore Configuration (optional)
 TUNECORE_PARTNER_ID=your_partner_id
 TUNECORE_API_KEY=your_api_key
+# Suno AI Configuration (optional)
+SUNO_API_TOKEN=your_suno_token
+SUNO_API_BASE=https://api.sunoapi.org
 TUNECORE_API_BASE_URL=https://api.tunecore.com
 
 # General Settings
@@ -72,6 +76,26 @@ publish platforms
 
 # Detect platform for directory
 publish detect ./my-album
+### AI Song Generation
+
+```bash
+# Generate a song from lyrics
+publish generate --title "My Song" --lyrics ./lyrics.txt
+
+# Generate with specific style
+publish generate --title "Rock Anthem" --lyrics ./lyrics.txt --style "heavy metal"
+
+# Specify output directory and format
+publish generate --title "Jazz Tune" --lyrics ./lyrics.txt --output ./songs --format wav
+
+# Generate with all options
+publish generate \
+  --title "Epic Journey" \
+  --lyrics ./examples/lyrics.txt \
+  --style "cinematic orchestral" \
+  --output ./generated-songs \
+  --format mp3
+```
 ```
 
 ### Platform Detection
