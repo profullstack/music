@@ -56,22 +56,22 @@ LOG_LEVEL=info
 
 ```bash
 # Publish music (auto-detects platform)
-music-publish publish ./my-album
+publish publish ./my-album
 
 # Force specific platform
-music-publish publish ./my-album --platform tunecore
+publish publish ./my-album --platform tunecore
 
 # Validate without publishing
-music-publish publish ./my-album --dry-run
+publish publish ./my-album --dry-run
 
 # Validate directory structure
-music-publish validate ./my-album
+publish validate ./my-album
 
 # Show platform information
-music-publish platforms
+publish platforms
 
 # Detect platform for directory
-music-publish detect ./my-album
+publish detect ./my-album
 ```
 
 ### Platform Detection
@@ -235,7 +235,7 @@ MIT License - see LICENSE file for details.
 
 For issues and questions:
 - Check the documentation above
-- Run `music-publish platforms` for configuration help
+- Run `publish platforms` for configuration help
 - Review test files for usage examples
 - Open an issue on GitHub
 

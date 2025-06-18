@@ -123,7 +123,7 @@ describe('CLI', () => {
   describe('displayVersion', () => {
     it('should return version information', () => {
       const version = cli.displayVersion();
-      expect(version).to.include('music-publisher-cli');
+      expect(version).to.include('publisher-cli');
       expect(version).to.include('1.0.0');
     });
   });

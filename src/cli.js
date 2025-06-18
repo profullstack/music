@@ -22,7 +22,7 @@ export class CLI {
    */
   setupCommands() {
     this.program
-      .name('music-publish')
+      .name('publish')
       .description('CLI tool for automated music publishing via FUGA and TuneCore')
       .version('1.0.0');
 
@@ -102,7 +102,7 @@ export class CLI {
       if (!validation.valid) {
         console.error('❌ Configuration Error:');
         validation.errors.forEach(error => console.error(`  • ${error}`));
-        console.error('\n💡 Tip: Run "music-publish platforms" to see configuration requirements');
+        console.error('\n💡 Tip: Run "publish platforms" to see configuration requirements');
         process.exit(1);
       }
     }
@@ -161,7 +161,7 @@ export class CLI {
       } catch (error) {
         spinner.fail('Configuration validation failed');
         console.error(`❌ ${error.message}`);
-        console.error('\n💡 Tip: Run "music-publish platforms" to see configuration requirements');
+        console.error('\n💡 Tip: Run "publish platforms" to see configuration requirements');
         process.exit(1);
       }
 
@@ -374,10 +374,10 @@ export class CLI {
 Music Publishing CLI - Unified FUGA & TuneCore Publisher
 
 Usage:
-  music-publish publish <directory>        Publish music (auto-detect platform)
-  music-publish validate <directory>       Validate directory structure
-  music-publish platforms                  Show supported platforms
-  music-publish detect <directory>         Detect platform for directory
+  publish publish <directory>        Publish music (auto-detect platform)
+  publish validate <directory>       Validate directory structure
+  publish platforms                  Show supported platforms
+  publish detect <directory>         Detect platform for directory
 
 Options:
   -p, --platform <platform>              Force specific platform (fuga|tunecore)
@@ -387,10 +387,10 @@ Options:
   --version                              Display version information
 
 Examples:
-  music-publish publish ./my-album
-  music-publish publish ./my-album --platform tunecore
-  music-publish validate ./my-album --dry-run
-  music-publish detect ./my-album
+  publish publish ./my-album
+  publish publish ./my-album --platform tunecore
+  publish validate ./my-album --dry-run
+  publish detect ./my-album
 
 Platform Detection:
   • TuneCore: Directories with metadata.json files
@@ -403,7 +403,7 @@ Platform Detection:
    * @returns {string} Version information
    */
   displayVersion() {
-    return 'music-publisher-cli v1.0.0';
+    return 'publisher-cli v1.0.0';
   }
 
   /**
@@ -423,7 +423,7 @@ Platform Detection:
       console.error(error.message);
       
       if (error.message.includes('Configuration')) {
-        console.error('\n💡 Run "music-publish platforms" for setup instructions');
+        console.error('\n💡 Run "publish platforms" for setup instructions');
       }
       
       process.exit(1);
