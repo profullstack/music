@@ -1,0 +1,30 @@
+{
+  "distrokid": {
+    "email": "your-distrokid-email@example.com",
+    "password": "your-secure-password",
+    "headless": true,
+    "previewMode": false,
+    "timeout": 30000,
+    "retries": 3,
+    "screenshotPath": "./screenshots/distrokid"
+  },
+  "album": {
+    "title": "My Awesome Album",
+    "artist": "AI Artist",
+    "genre": "Electronic",
+    "releaseDate": "2024-12-01",
+    "artwork": "./artwork.jpg",
+    "tracks": [
+      {
+        "title": "Track One",
+        "filePath": "./track1.mp3",
+        "lyrics": "Verse 1 lyrics here...\nChorus lyrics here..."
+      },
+      {
+        "title": "Track Two", 
+        "filePath": "./track2.mp3",
+        "lyrics": "Different lyrics for track 2..."
+      }
+    ]
+  }
+}
