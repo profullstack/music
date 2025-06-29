@@ -1,19 +1,21 @@
 # Music Publisher CLI
 
-**NEW: Now includes AI song generation using Suno API!**
-A unified Node.js CLI tool for automated music publishing to multiple platforms including FUGA and TuneCore. The tool automatically detects the appropriate platform based on your directory structure and metadata format.
+**NEW: Now includes AI song generation using Suno API and DistroKid form filling!**
+A unified Node.js CLI tool for automated music publishing to multiple platforms including FUGA, TuneCore, and DistroKid. The tool automatically detects the appropriate platform based on your directory structure and metadata format.
 
 ## Features
 
 - **Unified Publishing**: Single command publishes to FUGA or TuneCore automatically
+- **DistroKid Form Filler**: Automated form filling with headful browser for manual submission
 - **Platform Auto-Detection**: Automatically detects platform based on metadata structure
-- **Dual Metadata Support**: 
+- **Dual Metadata Support**:
   - FUGA: Uses embedded metadata from audio files
   - TuneCore: Uses structured `metadata.json` files
+- **AI Song Generation**: Generate songs using Suno API with custom lyrics and styles
 - **Comprehensive Validation**: Validates metadata, file formats, and API configurations
 - **Progress Tracking**: Real-time upload progress with ora spinners
 - **Robust Error Handling**: Retry mechanisms and detailed error reporting
-- **Test Coverage**: 64+ comprehensive tests with Mocha and Chai
+- **Test Coverage**: 135+ comprehensive tests with Mocha and Chai
 
 ## Installation
 
@@ -80,7 +82,14 @@ publish platforms
 
 # Detect platform for directory
 publish detect ./my-album
+
+# DistroKid form filling
+publish distrokid-fill --config ./examples/distrokid-form-config.json
+```
+
 ### AI Song Generation
+
+```bash
 
 ```bash
 # Generate a song from lyrics
@@ -127,6 +136,7 @@ The tool automatically detects which platform to use:
 
 - **TuneCore**: Directories containing `metadata.json` files
 - **FUGA**: Directories with embedded metadata in audio files
+- **DistroKid**: Interactive form filling with headful browser
 
 ## Directory Structures
 
@@ -177,6 +187,50 @@ Audio files should contain embedded metadata (ID3 tags) with:
 - Title, Artist, Album
 - Track number, Genre
 - Optional: ISRC, UPC
+
+### DistroKid Format (Interactive Form Filling)
+
+DistroKid uses a different approach - the tool opens a headful browser, logs into your account, and prefills the upload form with your track data. You then manually review and submit the form.
+
+**Configuration file example:**
+```json
+{
+  "distrokidCredentials": {
+    "email": "your-email@example.com",
+    "password": "your-password"
+  },
+  "trackData": {
+    "title": "Your Track Title",
+    "artist": "Your Artist Name",
+    "filePath": "./path/to/audio.wav",
+    "explicit": false,
+    "instrumental": false,
+    "songwriters": [
+      {
+        "role": "Music and lyrics",
+        "firstName": "John",
+        "lastName": "Doe"
+      }
+    ]
+  }
+}
+```
+
+**Usage:**
+```bash
+# Using configuration file
+publish distrokid-fill --config ./my-track-config.json
+
+# Using command line options
+publish distrokid-fill \
+  --email "user@example.com" \
+  --password "password" \
+  --title "My Track" \
+  --artist "My Artist" \
+  --file "./audio.wav"
+```
+
+See [`docs/DISTROKID-FORM-FILLER.md`](docs/DISTROKID-FORM-FILLER.md) for detailed documentation.
 
 ## API Reference
 
@@ -243,6 +297,7 @@ pnpm run type-check
 - **Publisher**: Unified service that handles both platforms
 - **FugaClient**: FUGA API integration with embedded metadata
 - **TuneCoreClient**: TuneCore API integration with structured metadata
+- **DistroKidFormFiller**: Headful browser automation for DistroKid form filling
 - **FileScanner**: Scans directories for audio files and embedded metadata
 - **MetadataScanner**: Handles structured metadata.json files
 - **CLI**: Command-line interface with auto-detection
@@ -252,6 +307,7 @@ pnpm run type-check
 1. Check for `metadata.json` files in directory
 2. If found → TuneCore (structured metadata)
 3. If not found → FUGA (embedded metadata)
+4. DistroKid → Manual selection via `distrokid-fill` command
 
 ### Error Handling
 

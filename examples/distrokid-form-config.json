@@ -1,0 +1,34 @@
+{
+  "distrokidCredentials": {
+    "email": "your-email@example.com",
+    "password": "your-password"
+  },
+  "trackData": {
+    "title": "Blood in the Algorithm",
+    "artist": "Velocity Vibe",
+    "filePath": "./Velocity Vibe/Circuits of Dissent/001-Blood in the Algorithm-Circuits of Dissent.wav",
+    "explicit": false,
+    "instrumental": false,
+    "isRadioEdit": false,
+    "isCoverSong": false,
+    "songwriters": [
+      {
+        "role": "Music and lyrics",
+        "firstName": "John",
+        "middleName": "",
+        "lastName": "Doe"
+      }
+    ],
+    "featuredArtists": [],
+    "versionInfo": null,
+    "previewStartTime": null,
+    "price": "Track Mid",
+    "dolbyAtmos": false,
+    "dolbyAtmosFile": null,
+    "coverSongInfo": null
+  },
+  "options": {
+    "screenshotPath": "./screenshots/distrokid",
+    "timeout": 30000
+  }
+}

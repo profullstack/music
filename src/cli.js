@@ -7,6 +7,8 @@ import { Publisher } from './services/publisher.js';
 import { SunoClient } from './api/suno-client.js';
 import { Generator } from './services/generator.js';
 import { AlbumGenerator } from './services/album-generator.js';
+import { DistroKidFormFiller } from './services/distrokid-form-filler.js';
+import { ConfigGenerator } from './services/config-generator.js';
 
 /**
  * CLI class for the unified Music Publishing tool
@@ -82,6 +84,45 @@ export class CLI {
       .option('-v, --verbose', 'Verbose output')
       .action(async (options) => {
         await this.handleGenerateCommand(options);
+      });
+
+    // DistroKid form filler command
+    this.program
+      .command('distrokid-fill')
+      .description('Fill DistroKid upload form with track data (opens browser for manual submission)')
+      .option('-c, --config <file>', 'Path to configuration file', './examples/distrokid-form-config.json')
+      .option('-e, --email <email>', 'DistroKid account email')
+      .option('-p, --password <password>', 'DistroKid account password')
+      .option('-t, --title <title>', 'Track title')
+      .option('-a, --artist <artist>', 'Artist name')
+      .option('-f, --file <path>', 'Path to audio file')
+      .option('--explicit', 'Track contains explicit lyrics')
+      .option('--instrumental', 'Track is instrumental')
+      .option('--radio-edit', 'Track is a radio edit')
+      .option('--cover-song', 'Track is a cover song')
+      .option('-v, --verbose', 'Verbose output')
+      .action(async (options) => {
+        await this.handleDistroKidFillCommand(options);
+      });
+
+    // Create track config command
+    this.program
+      .command('create-track-config')
+      .description('Create a DistroKid track configuration file interactively')
+      .option('-o, --output <directory>', 'Output directory for config file', './configs')
+      .option('-v, --verbose', 'Verbose output')
+      .action(async (options) => {
+        await this.handleCreateTrackConfigCommand(options);
+      });
+
+    // Create album config command
+    this.program
+      .command('create-album-config')
+      .description('Create an album configuration file interactively')
+      .option('-o, --output <directory>', 'Output directory for config file', './configs')
+      .option('-v, --verbose', 'Verbose output')
+      .action(async (options) => {
+        await this.handleCreateAlbumConfigCommand(options);
       });
   }
 
@@ -445,6 +486,209 @@ export class CLI {
   }
 
   /**
+   * Handle DistroKid form filler command
+   * @param {Object} options - Command options
+   */
+  async handleDistroKidFillCommand(options) {
+    const spinner = ora('Initializing DistroKid Form Filler...').start();
+
+    try {
+      let config;
+      let trackData;
+
+      // Load configuration from file or command line options
+      if (options.config) {
+        try {
+          const configFile = await import('fs').then(fs => fs.promises.readFile(options.config, 'utf8'));
+          const configJson = JSON.parse(configFile);
+          
+          config = {
+            email: options.email || configJson.distrokidCredentials?.email,
+            password: options.password || configJson.distrokidCredentials?.password,
+            ...configJson.options
+          };
+          
+          trackData = {
+            title: options.title || configJson.trackData?.title,
+            artist: options.artist || configJson.trackData?.artist,
+            filePath: options.file || configJson.trackData?.filePath,
+            explicit: options.explicit || configJson.trackData?.explicit || false,
+            instrumental: options.instrumental || configJson.trackData?.instrumental || false,
+            isRadioEdit: options.radioEdit || configJson.trackData?.isRadioEdit || false,
+            isCoverSong: options.coverSong || configJson.trackData?.isCoverSong || false,
+            songwriters: configJson.trackData?.songwriters || [],
+            featuredArtists: configJson.trackData?.featuredArtists || [],
+            versionInfo: configJson.trackData?.versionInfo,
+            previewStartTime: configJson.trackData?.previewStartTime,
+            price: configJson.trackData?.price || 'Track Mid',
+            dolbyAtmos: configJson.trackData?.dolbyAtmos || false,
+            dolbyAtmosFile: configJson.trackData?.dolbyAtmosFile,
+            coverSongInfo: configJson.trackData?.coverSongInfo
+          };
+        } catch (error) {
+          throw new Error(`Failed to load configuration file: ${error.message}`);
+        }
+      } else {
+        // Use command line options only
+        config = {
+          email: options.email,
+          password: options.password
+        };
+        
+        trackData = {
+          title: options.title,
+          artist: options.artist,
+          filePath: options.file,
+          explicit: options.explicit || false,
+          instrumental: options.instrumental || false,
+          isRadioEdit: options.radioEdit || false,
+          isCoverSong: options.coverSong || false,
+          songwriters: [],
+          featuredArtists: [],
+          versionInfo: null,
+          previewStartTime: null,
+          price: 'Track Mid',
+          dolbyAtmos: false
+        };
+      }
+
+      // Validate required fields
+      if (!config.email) {
+        throw new Error('DistroKid email is required (use --email or config file)');
+      }
+      
+      if (!config.password) {
+        throw new Error('DistroKid password is required (use --password or config file)');
+      }
+      
+      if (!trackData.title) {
+        throw new Error('Track title is required (use --title or config file)');
+      }
+      
+      if (!trackData.artist) {
+        throw new Error('Artist name is required (use --artist or config file)');
+      }
+      
+      if (!trackData.filePath) {
+        throw new Error('Audio file path is required (use --file or config file)');
+      }
+
+      spinner.succeed('Configuration loaded successfully');
+      console.log(`🎵 Track: "${trackData.title}" by ${trackData.artist}`);
+      console.log(`📁 Audio file: ${trackData.filePath}`);
+      console.log('🌐 Opening browser for DistroKid form filling...');
+
+      // Create and initialize form filler
+      const formFiller = new DistroKidFormFiller(config);
+      await formFiller.initialize();
+
+      console.log('📝 Filling form with track data...');
+      
+      // Fill form and wait for user submission
+      const result = await formFiller.fillFormAndWaitForSubmission(trackData);
+
+      if (result.success) {
+        console.log('✅ Form filled successfully!');
+        console.log('👤 Browser is open for you to review and submit manually');
+        
+        if (result.submitted) {
+          console.log('🎉 Form was submitted successfully!');
+          console.log(`📊 Final URL: ${result.finalUrl}`);
+        } else {
+          console.log('ℹ️  Form was filled but not submitted');
+          console.log(`📝 Reason: ${result.reason || 'User interaction required'}`);
+        }
+      } else {
+        console.error('❌ Form filling failed');
+        console.error(`💥 Error: ${result.error}`);
+      }
+
+      if (options.verbose) {
+        console.log('\nDetailed result:');
+        console.log(JSON.stringify(result, null, 2));
+      }
+
+      // Cleanup
+      await formFiller.close();
+
+    } catch (error) {
+      spinner.fail('DistroKid form filling failed');
+      console.error(`❌ ${error.message}`);
+      
+      if (options.verbose) {
+        console.error('\nFull error details:');
+        console.error(error.stack);
+      }
+      
+      process.exit(1);
+    }
+  }
+
+  /**
+   * Handle create track config command
+   * @param {Object} options - Command options
+   */
+  async handleCreateTrackConfigCommand(options) {
+    try {
+      console.log('🎵 Creating DistroKid Track Configuration...\n');
+      
+      const configGenerator = new ConfigGenerator({
+        outputDir: options.output
+      });
+      
+      const result = await configGenerator.createTrackConfig(options.output);
+      
+      if (options.verbose) {
+        console.log('\nGenerated configuration:');
+        console.log(JSON.stringify(result.config, null, 2));
+      }
+      
+    } catch (error) {
+      console.error('❌ Failed to create track configuration:');
+      console.error(`💥 ${error.message}`);
+      
+      if (options.verbose) {
+        console.error('\nFull error details:');
+        console.error(error.stack);
+      }
+      
+      process.exit(1);
+    }
+  }
+
+  /**
+   * Handle create album config command
+   * @param {Object} options - Command options
+   */
+  async handleCreateAlbumConfigCommand(options) {
+    try {
+      console.log('📀 Creating Album Configuration...\n');
+      
+      const configGenerator = new ConfigGenerator({
+        outputDir: options.output
+      });
+      
+      const result = await configGenerator.createAlbumConfig(options.output);
+      
+      if (options.verbose) {
+        console.log('\nGenerated configuration:');
+        console.log(JSON.stringify(result.config, null, 2));
+      }
+      
+    } catch (error) {
+      console.error('❌ Failed to create album configuration:');
+      console.error(`💥 ${error.message}`);
+      
+      if (options.verbose) {
+        console.error('\nFull error details:');
+        console.error(error.stack);
+      }
+      
+      process.exit(1);
+    }
+  }
+
+  /**
    * Validate Suno configuration
    * @param {Object} config - Configuration object
    * @throws {Error} If Suno configuration is invalid
@@ -774,6 +1018,9 @@ Usage:
   publish platforms                  Show supported platforms
   publish detect <directory>         Detect platform for directory
   publish generate                   Generate AI song using Suno API
+  publish distrokid-fill             Fill DistroKid upload form (headful browser)
+  publish create-track-config        Create DistroKid track configuration interactively
+  publish create-album-config        Create album configuration interactively
 
 Options:
   -p, --platform <platform>              Force specific platform (fuga|tunecore)
@@ -789,17 +1036,37 @@ Generate Options:
   -o, --output <directory>               Output directory (default: ./songs)
   -f, --format <format>                  Output format: mp3|wav (default: mp3)
 
+DistroKid Form Filler Options:
+  -c, --config <file>                    Configuration file (default: ./examples/distrokid-form-config.json)
+  -e, --email <email>                    DistroKid account email
+  -p, --password <password>              DistroKid account password
+  -t, --title <title>                    Track title
+  -a, --artist <artist>                  Artist name
+  -f, --file <path>                      Path to audio file
+  --explicit                             Track contains explicit lyrics
+  --instrumental                         Track is instrumental
+  --radio-edit                           Track is a radio edit
+  --cover-song                           Track is a cover song
+
+Configuration Creation Options:
+  -o, --output <directory>               Output directory for config files (default: ./configs)
+
 Examples:
   publish publish ./my-album
   publish publish ./my-album --platform tunecore
   publish validate ./my-album --dry-run
   publish detect ./my-album
   publish generate --title "My Song" --lyrics ./lyrics.txt --style "rock"
+  publish distrokid-fill --config ./examples/distrokid-form-config.json
+  publish distrokid-fill --email user@example.com --password pass --title "My Song" --artist "Artist" --file ./song.wav
+  publish create-track-config --output ./my-configs
+  publish create-album-config --output ./my-configs
 
 Platform Detection:
   • TuneCore: Directories with metadata.json files
   • FUGA: Directories with embedded metadata in audio files
   • Suno: AI song generation via API
+  • DistroKid: Interactive form filling with headful browser
 `;
   }
 
