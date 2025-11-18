@@ -2,7 +2,7 @@
 
 # Function to display usage
 usage() {
-    echo "Usage: $0 [--mp3|--wav|--flac|--all|--images] [--delete-everything] [directory_path]"
+    echo "Usage: $0 [--mp3|--wav|--flac|--all|--images|--fix-files] [--delete-everything] [directory_path]"
     echo ""
     echo "Options:"
     echo "  --mp3               Convert WAV files to MP3 in the same directory (keeps WAV files)"
@@ -10,6 +10,7 @@ usage() {
     echo "  --flac              Convert WAV files to FLAC in the same directory (keeps WAV files)"
     echo "  --all               Rename WAV files and create MP3 and FLAC copies in the same directory"
     echo "  --images            Convert SVG files to PNG using ImageMagick (copies SVG and PNG to ./assets)"
+    echo "  --fix-files         Fix files with double number padding (e.g., 001-001-Title.ext -> 001-Title.ext)"
     echo "  --delete-everything Delete original WAV files after conversion (requires confirmation)"
     echo ""
     echo "Arguments:"
@@ -21,6 +22,7 @@ usage() {
     echo "  $0 --mp3 --delete-everything                # Convert to MP3 and delete WAV files (with confirmation)"
     echo "  $0 --all \"./Velocity Vibe/Pulse Revolution\"  # Rename WAV and create MP3 and FLAC copies"
     echo "  $0 --images \"./Velocity Vibe\"                # Convert SVG files to PNG using ImageMagick"
+    echo "  $0 --fix-files \"./Velocity Vibe\"             # Fix double-padded filenames"
     echo "  $0 \"./Velocity Vibe/Pulse Revolution\"        # Just rename WAV files (default)"
     exit 1
 }
@@ -178,6 +180,10 @@ while [[ $# -gt 0 ]]; do
             FORMAT="images"
             shift
             ;;
+        --fix-files)
+            FORMAT="fix-files"
+            shift
+            ;;
         --delete-everything)
             DELETE_WAVS=true
             shift
@@ -231,6 +237,8 @@ conversion_errors=0
 
 if [[ "$FORMAT" == "images" ]]; then
     echo "Processing SVG files to PNG format"
+elif [[ "$FORMAT" == "fix-files" ]]; then
+    echo "Fixing files with double number padding"
 else
     echo "Processing WAV files with format: $FORMAT"
 fi
@@ -245,6 +253,60 @@ cd "$WORK_DIR" || {
 
 # Extract album name from directory (last component)
 album=$(basename "$(pwd)")
+
+# Handle fix-files format separately
+if [[ "$FORMAT" == "fix-files" ]]; then
+    # Loop through all audio files (wav, mp3, flac) in the directory
+    for ext in wav mp3 flac; do
+        for file in *."$ext"; do
+            if [[ -f "$file" ]]; then
+                # Check if file has double number padding pattern: NNN-NNN (with optional space/dash)
+                if [[ "$file" =~ ^([0-9]{3})-([0-9]{3})[[:space:]-] ]]; then
+                    first_num="${BASH_REMATCH[1]}"
+                    second_num="${BASH_REMATCH[2]}"
+                    
+                    # Only fix if both numbers are the same
+                    if [[ "$first_num" == "$second_num" ]]; then
+                        # Remove the duplicate number prefix (NNN-)
+                        new_name="${file#[0-9][0-9][0-9]-}"
+                        
+                        echo "Fixing: $file -> $new_name"
+                        
+                        # Check if target file already exists
+                        if [[ -f "$new_name" ]]; then
+                            if ! confirm_overwrite "${ext^^}" "$new_name"; then
+                                continue
+                            fi
+                        fi
+                        
+                        # Rename the file
+                        if mv "$file" "$new_name"; then
+                            echo "✓ Fixed: $new_name"
+                            ((processed_files++))
+                        else
+                            echo "✗ Failed to fix: $file"
+                        fi
+                    fi
+                fi
+            fi
+        done
+    done
+    
+    # Summary for fix-files
+    echo ""
+    echo "=== Processing Complete ==="
+    echo "Files fixed: $processed_files"
+    echo "Working directory: $(pwd)"
+    
+    # Check if no files were found
+    if [[ $processed_files -eq 0 ]]; then
+        echo ""
+        echo "Warning: No files with double padding found in directory: $WORK_DIR"
+        exit 1
+    fi
+    
+    exit 0
+fi
 
 # Handle images format separately
 if [[ "$FORMAT" == "images" ]]; then
@@ -308,8 +370,8 @@ fi
 for file in *.wav; do
     if [[ -f "$file" ]]; then
         # Skip files that have already been processed (contain numbered format)
-        # Exception: --all mode can process already-numbered files to create missing formats
-        if [[ "$file" =~ ^[0-9]{3}- ]] && [[ "$FORMAT" != "all" ]]; then
+        # Exception: --all, --mp3, and --flac modes can process already-numbered files to create missing formats
+        if [[ "$file" =~ ^[0-9]{3}- ]] && [[ "$FORMAT" == "wav" ]]; then
             echo "Skipping already processed file: $file"
             continue
         fi
@@ -322,11 +384,15 @@ for file in *.wav; do
         
         # Check if file is already processed (has number prefix)
         if [[ "$file" =~ ^[0-9]{3}- ]]; then
-            # File is already processed, use its existing name structure (basename without extension)
-            base_name="${file%.wav}"
+            # File is already processed, extract the existing number and use it
+            existing_num="${file:0:3}"
+            # Remove the number prefix from base to get the rest of the filename
+            base_without_num="${base#[0-9][0-9][0-9]-}"
+            
+            # Use existing number for all output files
             wav_name="$file"
-            mp3_name="${base_name}.mp3"
-            flac_name="${base_name}.flac"
+            mp3_name="${existing_num}-${base_without_num}.mp3"
+            flac_name="${existing_num}-${base_without_num}.flac"
         else
             # File is not processed, create new numbered names
             # Check if the base already contains the album name to avoid duplication
@@ -345,6 +411,13 @@ for file in *.wav; do
 
         case $FORMAT in
             "wav")
+                # Skip if file is already properly numbered
+                if [[ "$file" =~ ^[0-9]{3}- ]]; then
+                    echo "Skipping already numbered file: $file"
+                    ((counter++))
+                    continue
+                fi
+                
                 # Check if target WAV file already exists
                 if [[ -f "$wav_name" ]]; then
                     if ! confirm_overwrite "WAV" "$wav_name"; then
