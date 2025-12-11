@@ -10,7 +10,10 @@ usage() {
     echo "  --flac              Convert WAV files to FLAC in the same directory (keeps WAV files)"
     echo "  --all               Rename WAV files and create MP3 and FLAC copies in the same directory"
     echo "  --images            Convert SVG files to PNG using ImageMagick (copies SVG and PNG to ./assets)"
-    echo "  --fix-files         Fix files with double number padding (e.g., 001-001-Title.ext -> 001-Title.ext)"
+    echo "  --fix-files         Fix files with duplicate numbering patterns:"
+    echo "                        - 001-001-Title.ext -> 001-Title.ext"
+    echo "                        - 001-01. Title.ext -> 001-Title.ext"
+    echo "                        - 001-1. Title.ext  -> 001-Title.ext"
     echo "  --delete-everything Delete original WAV files after conversion (requires confirmation)"
     echo ""
     echo "Arguments:"
@@ -22,7 +25,7 @@ usage() {
     echo "  $0 --mp3 --delete-everything                # Convert to MP3 and delete WAV files (with confirmation)"
     echo "  $0 --all \"./Velocity Vibe/Pulse Revolution\"  # Rename WAV and create MP3 and FLAC copies"
     echo "  $0 --images \"./Velocity Vibe\"                # Convert SVG files to PNG using ImageMagick"
-    echo "  $0 --fix-files \"./Velocity Vibe\"             # Fix double-padded filenames"
+    echo "  $0 --fix-files \"./Meine Mutter/Neonblut\"     # Fix duplicate numbering in filenames"
     echo "  $0 \"./Velocity Vibe/Pulse Revolution\"        # Just rename WAV files (default)"
     exit 1
 }
@@ -260,7 +263,9 @@ if [[ "$FORMAT" == "fix-files" ]]; then
     for ext in wav mp3 flac; do
         for file in *."$ext"; do
             if [[ -f "$file" ]]; then
-                # Check if file has double number padding pattern: NNN-NNN (with optional space/dash)
+                new_name=""
+                
+                # Pattern 1: NNN-NNN- (e.g., 001-001-Title.ext)
                 if [[ "$file" =~ ^([0-9]{3})-([0-9]{3})[[:space:]-] ]]; then
                     first_num="${BASH_REMATCH[1]}"
                     second_num="${BASH_REMATCH[2]}"
@@ -269,23 +274,57 @@ if [[ "$FORMAT" == "fix-files" ]]; then
                     if [[ "$first_num" == "$second_num" ]]; then
                         # Remove the duplicate number prefix (NNN-)
                         new_name="${file#[0-9][0-9][0-9]-}"
-                        
-                        echo "Fixing: $file -> $new_name"
-                        
-                        # Check if target file already exists
-                        if [[ -f "$new_name" ]]; then
-                            if ! confirm_overwrite "${ext^^}" "$new_name"; then
-                                continue
-                            fi
+                    fi
+                # Pattern 2: NNN-NN. (e.g., 001-01. Title.ext) - from --all mode
+                elif [[ "$file" =~ ^([0-9]{3})-([0-9]{2})\.[[:space:]] ]]; then
+                    first_num="${BASH_REMATCH[1]}"
+                    second_num="${BASH_REMATCH[2]}"
+                    
+                    # Convert 2-digit to number for comparison (remove leading zero)
+                    first_num_int=$((10#$first_num))
+                    second_num_int=$((10#$second_num))
+                    
+                    # Only fix if both numbers represent the same track
+                    if [[ "$first_num_int" == "$second_num_int" ]]; then
+                        # Remove the duplicate "NN. " portion after the 3-digit prefix
+                        # e.g., "001-01. Title.ext" -> "001-Title.ext"
+                        rest="${file#[0-9][0-9][0-9]-[0-9][0-9]. }"
+                        new_name="${first_num}-${rest}"
+                    fi
+                # Pattern 3: NNN-N. (e.g., 001-1. Title.ext) - single digit track number
+                elif [[ "$file" =~ ^([0-9]{3})-([0-9])\.[[:space:]] ]]; then
+                    first_num="${BASH_REMATCH[1]}"
+                    second_num="${BASH_REMATCH[2]}"
+                    
+                    # Convert to numbers for comparison
+                    first_num_int=$((10#$first_num))
+                    second_num_int=$((10#$second_num))
+                    
+                    # Only fix if both numbers represent the same track
+                    if [[ "$first_num_int" == "$second_num_int" ]]; then
+                        # Remove the duplicate "N. " portion after the 3-digit prefix
+                        rest="${file#[0-9][0-9][0-9]-[0-9]. }"
+                        new_name="${first_num}-${rest}"
+                    fi
+                fi
+                
+                # If we found a pattern to fix, rename the file
+                if [[ -n "$new_name" ]]; then
+                    echo "Fixing: $file -> $new_name"
+                    
+                    # Check if target file already exists
+                    if [[ -f "$new_name" ]]; then
+                        if ! confirm_overwrite "${ext^^}" "$new_name"; then
+                            continue
                         fi
-                        
-                        # Rename the file
-                        if mv "$file" "$new_name"; then
-                            echo "✓ Fixed: $new_name"
-                            ((processed_files++))
-                        else
-                            echo "✗ Failed to fix: $file"
-                        fi
+                    fi
+                    
+                    # Rename the file
+                    if mv "$file" "$new_name"; then
+                        echo "✓ Fixed: $new_name"
+                        ((processed_files++))
+                    else
+                        echo "✗ Failed to fix: $file"
                     fi
                 fi
             fi
